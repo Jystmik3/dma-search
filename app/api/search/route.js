@@ -1,34 +1,42 @@
 import { NextResponse } from 'next/server';
 
 function extractTranscript(full) {
-  if (!full) return { preview: '', full: '' };
-  
-  // Find where actual conversation starts (timestamp pattern like "0:00" or "1:12")
-  const lines = full.split('\n');
-  let transcriptStart = 0;
-  let summaryEnd = 0;
-  
-  for (let i = 0; i < lines.length; i++) {
-    // Look for timestamp lines like "0:00 - Speaker" or "1:12 - Speaker"
-    if (/^\d+:\d+\s*-/.test(lines[i].trim())) {
-      transcriptStart = i;
-      break;
+  if (!full) return { preview: '', full: '', hasMore: false };
+
+  // Gemini Notes format has two possible starting points:
+  // 1. "Notes\nDate\nTitle" header
+  // 2. "Summary" section
+  // 3. "Details" section with timestamps like 00:00:00)
+  // 4. Raw transcript with timestamps like 0:00 - Speaker
+
+  let text = full;
+
+  // Try to find "Details" section start (Gemini Notes format)
+  const detailsIdx = full.indexOf('\nDetails\n');
+  if (detailsIdx !== -1) {
+    text = full.substring(detailsIdx + 9).trim();
+    // Clean up markdown-like formatting
+    text = text.replace(/\*\*(.*?)\*\*/g, '$1'); // Remove bold markers
+    text = text.replace(/\n\s*\n/g, '\n\n'); // Normalize blank lines
+  } else {
+    // Try to find raw transcript start (timestamp pattern)
+    const lines = full.split('\n');
+    let startIdx = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\d{1,2}:\d{2}[:\s]/.test(lines[i].trim())) {
+        startIdx = i;
+        break;
+      }
     }
-    // Track where summary ends
-    if (lines[i].trim() === '' && i > 5) {
-      summaryEnd = i;
+    if (startIdx > 0) {
+      text = lines.slice(startIdx).join('\n').trim();
     }
   }
-  
-  // Get transcript portion (skip header + summary)
-  const transcriptLines = lines.slice(transcriptStart);
-  const transcript = transcriptLines.join('\n').trim();
-  
-  return {
-    preview: transcript.substring(0, 300),
-    full: transcript.substring(0, 3000),
-    hasMore: transcript.length > 3000,
-  };
+
+  const preview = text.substring(0, 400).replace(/\n/g, ' ');
+  const fullText = text.substring(0, 3000);
+
+  return { preview, full: fullText, hasMore: text.length > 3000 };
 }
 
 export async function POST(request) {
