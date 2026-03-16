@@ -87,6 +87,7 @@ export async function POST(request) {
         similarity: Math.round((r.similarity || 0) * 100) / 100,
         summary: r.summary || '',
         preview, full_transcript: full, has_more: hasMore,
+        drive_file_id: r.drive_file_id || null,
       };
     });
     return NextResponse.json({ results: trimmed });

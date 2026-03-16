@@ -51,7 +51,12 @@ export default function Home() {
         <div key={r.id} style={{ border: '1px solid #eee', borderRadius: 8, padding: 20, marginBottom: 16, borderLeft: '4px solid ' + (r.similarity > 0.6 ? '#011736' : r.similarity > 0.4 ? '#ff821f' : '#999') }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
             <strong style={{ color: '#011736', fontSize: 18 }}>{r.title}</strong>
-            <span style={{ color: '#ff821f', fontWeight: 600, fontSize: 13 }}>{Math.round(r.similarity * 100)}% match</span>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <span style={{ color: '#ff821f', fontWeight: 600, fontSize: 13 }}>{Math.round(r.similarity * 100)}% match</span>
+              {r.drive_file_id && (
+                <a href={`https://drive.google.com/file/d/${r.drive_file_id}/view`} target="_blank" rel="noopener noreferrer" style={{ color: '#083964', fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>&#x1F517; Full</a>
+              )}
+            </div>
           </div>
           <div style={{ color: '#999', fontSize: 14, marginBottom: 10 }}>{r.call_date}</div>
           {r.summary && (
