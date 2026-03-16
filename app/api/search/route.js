@@ -10,7 +10,6 @@ function findRelevantSection(full, query) {
 
   const queryWords = (query || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
 
-  // Find ALL matching positions
   const matches = [];
   for (const word of queryWords) {
     let idx = 0;
@@ -21,42 +20,36 @@ function findRelevantSection(full, query) {
     }
   }
 
+  let relevantText;
   if (matches.length === 0) {
-    return { preview: text.substring(0, 400), full: text.substring(0, 3000), hasMore: text.length > 3000 };
-  }
-
-  // Find the densest cluster of matches
-  matches.sort((a, b) => a - b);
-  let bestStart = 0, bestEnd = text.length, bestDensity = 0;
-  
-  for (let i = 0; i < matches.length; i++) {
-    // Look at a 1500-char window starting from each match
-    const windowStart = Math.max(0, matches[i] - 200);
-    const windowEnd = Math.min(text.length, windowStart + 1500);
-    const windowMatches = matches.filter(m => m >= windowStart && m <= windowEnd);
-    if (windowMatches.length > bestDensity) {
-      bestDensity = windowMatches.length;
-      bestStart = windowStart;
-      // Expand to include full sentences
-      let end = windowEnd;
-      while (end < text.length && text[end] !== '.' && text[end] !== '\n') end++;
-      bestEnd = Math.min(end + 1, text.length);
+    relevantText = text.substring(0, 2000);
+  } else {
+    matches.sort((a, b) => a - b);
+    let bestStart = 0, bestDensity = 0;
+    for (let i = 0; i < matches.length; i++) {
+      const windowStart = Math.max(0, matches[i] - 200);
+      const windowEnd = Math.min(text.length, windowStart + 2000);
+      const windowMatches = matches.filter(m => m >= windowStart && m <= windowEnd);
+      if (windowMatches.length > bestDensity) {
+        bestDensity = windowMatches.length;
+        bestStart = windowStart;
+      }
     }
+    let end = bestStart + 2000;
+    while (end < text.length && text[end] !== '.' && text[end] !== '\n') end++;
+    relevantText = text.substring(bestStart, Math.min(end + 1, text.length));
   }
 
-  const relevantSection = text.substring(bestStart, bestEnd);
-
-  // Highlight query words
-  let highlighted = relevantSection;
+  let highlighted = relevantText;
   for (const word of queryWords) {
     const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     highlighted = highlighted.replace(regex, '**$1**');
   }
 
   return {
-    preview: highlighted.substring(0, 400).replace(/\n/g, ' '),
+    preview: highlighted.substring(0, 300).replace(/\n/g, ' '),
     full: highlighted.substring(0, 3000),
-    hasMore: highlighted.length > 3000,
+    hasMore: highlighted.length > 300,
   };
 }
 

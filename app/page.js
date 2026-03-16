@@ -70,7 +70,7 @@ export default function Home() {
           {r.has_more && (
             <button onClick={() => setExpanded(expanded === r.id ? null : r.id)} style={{ background: 'none', border: 'none', color: '#083964', cursor: 'pointer', fontSize: 14, fontWeight: 600, marginTop: 8 }}>
               {expanded === r.id ? 'Show less' : '\u25BC Show relevant section'}
-            </button>
+              </button>
           )}
         </div>
       ))}
