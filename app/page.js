@@ -51,10 +51,7 @@ export default function Home() {
         <div key={r.id} style={{ border: '1px solid #eee', borderRadius: 8, padding: 20, marginBottom: 16, borderLeft: '4px solid ' + (r.similarity > 0.6 ? '#011736' : r.similarity > 0.4 ? '#ff821f' : '#999') }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
             <strong style={{ color: '#011736', fontSize: 18 }}>{r.title}</strong>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ color: '#ff821f', fontWeight: 600, fontSize: 13 }}>{Math.round(r.similarity * 100)}% match</span>
-              <a href={r.report_url} target="_blank" rel="noopener noreferrer" style={{ color: '#083964', fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>&#x1F517; Full</a>
-            </div>
+            <span style={{ color: '#ff821f', fontWeight: 600, fontSize: 13 }}>{Math.round(r.similarity * 100)}% match</span>
           </div>
           <div style={{ color: '#999', fontSize: 14, marginBottom: 10 }}>{r.call_date}</div>
           {r.summary && (
@@ -70,7 +67,7 @@ export default function Home() {
           {r.has_more && (
             <button onClick={() => setExpanded(expanded === r.id ? null : r.id)} style={{ background: 'none', border: 'none', color: '#083964', cursor: 'pointer', fontSize: 14, fontWeight: 600, marginTop: 8 }}>
               {expanded === r.id ? 'Show less' : '\u25BC Show relevant section'}
-              </button>
+            </button>
           )}
         </div>
       ))}

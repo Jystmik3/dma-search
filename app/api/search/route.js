@@ -87,7 +87,6 @@ export async function POST(request) {
         similarity: Math.round((r.similarity || 0) * 100) / 100,
         summary: r.summary || '',
         preview, full_transcript: full, has_more: hasMore,
-        report_url: r.drive_file_id ? `https://drive.google.com/file/d/${r.drive_file_id}/view` : null,
       };
     });
     return NextResponse.json({ results: trimmed });
