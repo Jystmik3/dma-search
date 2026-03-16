@@ -2,40 +2,62 @@ import { NextResponse } from 'next/server';
 
 function findRelevantSection(full, query) {
   if (!full || !query) return { preview: '', full: '', hasMore: false };
+
   let text = full;
   const detailsIdx = full.indexOf('\nDetails\n');
   if (detailsIdx !== -1) text = full.substring(detailsIdx + 9).trim();
-  text = text.replace(/\*\*(.*?)\*\*/g, '$1');
-  text = text.replace(/&amp;/g, '&').replace(/&#x27;/g, "'");
-  const sections = text.split(/(\d{2}:\d{2}:\d{2}\))?/);
-  const queryWords = (query || '').toLowerCase().split(/\s+/);
-  let bestSection = '', bestScore = 0;
-  for (let i = 0; i < sections.length; i++) {
-    const section = sections[i];
-    if (!section || !section.trim()) continue;
-    const lower = section.toLowerCase();
-    let score = 0;
-    for (const word of queryWords) {
-      if (!word) continue;
-      const idx = lower.indexOf(word);
-      if (idx !== -1) {
-        score += 1;
-        const nearby = lower.substring(Math.max(0, idx - 100), Math.min(lower.length, idx + 100));
-        for (const other of queryWords) {
-          if (other && other !== word && nearby.includes(other)) score += 2;
-        }
-      }
-    }
-    if (score > bestScore && section.trim().length > 50) { bestScore = score; bestSection = section.trim(); }
-  }
-  const result = bestScore > 0 ? bestSection : text.substring(0, 2000);
-  let highlighted = result;
+  text = text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/&amp;/g, '&').replace(/&#x27;/g, "'").replace(/&#x2F;/g, '/');
+
+  const queryWords = (query || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+
+  // Find ALL matching positions
+  const matches = [];
   for (const word of queryWords) {
-    if (!word) continue;
+    let idx = 0;
+    const lower = text.toLowerCase();
+    while ((idx = lower.indexOf(word, idx)) !== -1) {
+      matches.push(idx);
+      idx += word.length;
+    }
+  }
+
+  if (matches.length === 0) {
+    return { preview: text.substring(0, 400), full: text.substring(0, 3000), hasMore: text.length > 3000 };
+  }
+
+  // Find the densest cluster of matches
+  matches.sort((a, b) => a - b);
+  let bestStart = 0, bestEnd = text.length, bestDensity = 0;
+  
+  for (let i = 0; i < matches.length; i++) {
+    // Look at a 1500-char window starting from each match
+    const windowStart = Math.max(0, matches[i] - 200);
+    const windowEnd = Math.min(text.length, windowStart + 1500);
+    const windowMatches = matches.filter(m => m >= windowStart && m <= windowEnd);
+    if (windowMatches.length > bestDensity) {
+      bestDensity = windowMatches.length;
+      bestStart = windowStart;
+      // Expand to include full sentences
+      let end = windowEnd;
+      while (end < text.length && text[end] !== '.' && text[end] !== '\n') end++;
+      bestEnd = Math.min(end + 1, text.length);
+    }
+  }
+
+  const relevantSection = text.substring(bestStart, bestEnd);
+
+  // Highlight query words
+  let highlighted = relevantSection;
+  for (const word of queryWords) {
     const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     highlighted = highlighted.replace(regex, '**$1**');
   }
-  return { preview: highlighted.substring(0, 400).replace(/\n/g, ' '), full: highlighted.substring(0, 3000), hasMore: highlighted.length > 3000 || text.length > 3000 };
+
+  return {
+    preview: highlighted.substring(0, 400).replace(/\n/g, ' '),
+    full: highlighted.substring(0, 3000),
+    hasMore: highlighted.length > 3000,
+  };
 }
 
 export async function POST(request) {
