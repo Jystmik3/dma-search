@@ -25,9 +25,13 @@ export async function POST(request) {
     const results = await supaRes.json();
 
     const trimmed = results.map(r => ({
-      id: r.id, call_date: r.call_date, title: r.title,
+      id: r.id,
+      call_date: r.call_date,
+      title: r.title,
       similarity: Math.round(r.similarity * 100) / 100,
       preview: (r.transcript || '').substring(0, 300),
+      full_transcript: (r.transcript || '').substring(0, 2000),
+      report_url: r.drive_file_id ? `https://drive.google.com/file/d/${r.drive_file_id}/view` : null,
     }));
 
     return NextResponse.json({ results: trimmed });
