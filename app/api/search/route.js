@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+const STOP_WORDS = new Set(['the','a','an','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','can','may','might','shall','must','to','of','in','for','on','with','at','by','from','as','into','through','during','before','after','above','below','between','out','off','over','under','again','further','then','once','here','there','when','where','why','how','all','each','every','both','few','more','most','other','some','such','no','nor','not','only','own','same','so','than','too','very','just','because','but','and','or','if','while','about','up','what','which','who','whom','this','that','these','those','i','me','my','we','our','you','your','he','him','his','she','her','it','its','they','them','their','am','been','get','got','also','like','think','know','well','right','go','going','go','went','one','two','thing','things','way','want','need','gonna','yeah','yes','oh','uh','um','said','say','says','told','asked','still','even','much','many','lot','really','okay','ok','sure','hey','hello','hi','thank','thanks','please','yeah','yep','yup','nope','nah','gonna','gotta','wanna','kinda','sorta','dont','dont','isnt','wasnt','doesnt','didnt','wont','wouldnt','couldnt','shouldnt','havent','hasnt','hadnt','arent','werent','was','were','its','doing','going','being','having','making','getting','putting','take','took','taken','come','came','see','saw','seen','look','looked','give','gave','given','use','used','find','found','tell','told','try','tried','keep','kept','let','seem','set','let','put','say','said']);
+
 function findRelevantSection(full, query) {
   if (!full || !query) return { preview: '', full: '', hasMore: false };
 
@@ -8,14 +10,14 @@ function findRelevantSection(full, query) {
   if (detailsIdx !== -1) text = full.substring(detailsIdx + 9).trim();
   text = text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/&amp;/g, '&').replace(/&#x27;/g, "'").replace(/&#x2F;/g, '/');
 
-  const queryWords = (query || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  const queryWords = (query || '').toLowerCase().split(/\s+/).filter(w => w.length > 2 && !STOP_WORDS.has(w));
 
   const matches = [];
   for (const word of queryWords) {
     let idx = 0;
     const lower = text.toLowerCase();
     while ((idx = lower.indexOf(word, idx)) !== -1) {
-      matches.push(idx);
+      matches.push({ pos: idx, word });
       idx += word.length;
     }
   }
@@ -24,12 +26,12 @@ function findRelevantSection(full, query) {
   if (matches.length === 0) {
     relevantText = text.substring(0, 2000);
   } else {
-    matches.sort((a, b) => a - b);
+    matches.sort((a, b) => a.pos - b.pos);
     let bestStart = 0, bestDensity = 0;
     for (let i = 0; i < matches.length; i++) {
-      const windowStart = Math.max(0, matches[i] - 200);
+      const windowStart = Math.max(0, matches[i].pos - 200);
       const windowEnd = Math.min(text.length, windowStart + 2000);
-      const windowMatches = matches.filter(m => m >= windowStart && m <= windowEnd);
+      const windowMatches = matches.filter(m => m.pos >= windowStart && m.pos <= windowEnd);
       if (windowMatches.length > bestDensity) {
         bestDensity = windowMatches.length;
         bestStart = windowStart;
@@ -42,7 +44,7 @@ function findRelevantSection(full, query) {
 
   let highlighted = relevantText;
   for (const word of queryWords) {
-    const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const regex = new RegExp(`\b(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\b`, 'gi');
     highlighted = highlighted.replace(regex, '**$1**');
   }
 
