@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server';
 
-const STOP_WORDS = new Set(['the','a','an','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','can','may','might','shall','must','to','of','in','for','on','with','at','by','from','as','into','through','during','before','after','above','below','between','out','off','over','under','again','further','then','once','here','there','when','where','why','how','all','each','every','both','few','more','most','other','some','such','no','nor','not','only','own','same','so','than','too','very','just','because','but','and','or','if','while','about','up','what','which','who','whom','this','that','these','those','i','me','my','we','our','you','your','he','him','his','she','her','it','its','they','them','their','am','been','get','got','also','like','think','know','well','right','go','going','go','went','one','two','thing','things','way','want','need','gonna','yeah','yes','oh','uh','um','said','say','says','told','asked','still','even','much','many','lot','really','okay','ok','sure','hey','hello','hi','thank','thanks','please','yeah','yep','yup','nope','nah','gonna','gotta','wanna','kinda','sorta','dont','dont','isnt','wasnt','doesnt','didnt','wont','wouldnt','couldnt','shouldnt','havent','hasnt','hadnt','arent','werent','was','were','its','doing','going','being','having','making','getting','putting','take','took','taken','come','came','see','saw','seen','look','looked','give','gave','given','use','used','find','found','tell','told','try','tried','keep','kept','let','seem','set','let','put','say','said']);
+const STOP_WORDS = new Set(['the','a','an','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','can','may','might','shall','must','to','of','in','for','on','with','at','by','from','as','into','through','during','before','after','above','below','between','out','off','over','under','again','further','then','once','here','there','when','where','why','how','all','each','every','both','few','more','most','other','some','such','no','nor','not','only','own','same','so','than','too','very','just','because','but','and','or','if','while','about','up','what','which','who','whom','this','that','these','those','i','me','my','we','our','you','your','he','him','his','she','her','it','its','they','them','their','am','been','get','got','also','like','think','know','well','right','go','going','went','one','two','thing','things','way','want','need','gonna','yeah','yes','oh','uh','um','said','say','says','told','asked','still','even','much','many','lot','really','okay','ok','sure','hey','hello','hi','thank','thanks','please','yeah','yep','yup','nope','nah','gonna','gotta','wanna','kinda','sorta','dont','dont','isnt','wasnt','doesnt','didnt','wont','wouldnt','couldnt','shouldnt','havent','hasnt','hadnt','arent','werent','was','were','its','doing','going','being','having','making','getting','putting','take','took','taken','come','came','see','saw','seen','look','looked','give','gave','given','use','used','find','found','tell','told','try','tried','keep','kept','let','seem','set','let','put','say','said']);
+
+// Rate limiting: 30 requests per minute per IP
+const rateLimitMap = new Map();
+
+function getRateLimitKey(ip) {
+  const now = Date.now();
+  const window = 60000; // 1 minute
+  if (!rateLimitMap.has(ip)) rateLimitMap.set(ip, []);
+  const timestamps = rateLimitMap.get(ip).filter(t => now - t < window);
+  rateLimitMap.set(ip, timestamps);
+  return { count: timestamps.length, timestamps };
+}
+
+function addRateLimit(ip) {
+  const data = getRateLimitKey(ip);
+  data.timestamps.push(Date.now());
+  rateLimitMap.set(ip, data.timestamps);
+}
+
+// Clean up old entries every 5 minutes
+setInterval(() => { const cutoff = Date.now() - 120000; for (const [k, v] of rateLimitMap) { if (v.every(t => t < cutoff)) rateLimitMap.delete(k); } }, 300000);
 
 function findRelevantSection(full, query) {
   if (!full || !query) return { preview: '', full: '', hasMore: false };
@@ -57,9 +78,18 @@ function findRelevantSection(full, query) {
 
 export async function POST(request) {
   try {
+    // Rate limit check
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const rl = getRateLimitKey(ip);
+    if (rl.count >= 30) {
+      return NextResponse.json({ error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
+    }
+
     const body = await request.json();
     const query = body?.query || '';
     if (!query) return NextResponse.json({ results: [] });
+
+    addRateLimit(ip);
 
     const embRes = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
