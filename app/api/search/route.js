@@ -1,42 +1,62 @@
 import { NextResponse } from 'next/server';
 
-function extractTranscript(full) {
+function findRelevantSection(full, query) {
   if (!full) return { preview: '', full: '', hasMore: false };
 
-  // Gemini Notes format has two possible starting points:
-  // 1. "Notes\nDate\nTitle" header
-  // 2. "Summary" section
-  // 3. "Details" section with timestamps like 00:00:00)
-  // 4. Raw transcript with timestamps like 0:00 - Speaker
-
+  // Extract Details section
   let text = full;
-
-  // Try to find "Details" section start (Gemini Notes format)
   const detailsIdx = full.indexOf('\nDetails\n');
   if (detailsIdx !== -1) {
     text = full.substring(detailsIdx + 9).trim();
-    // Clean up markdown-like formatting
-    text = text.replace(/\*\*(.*?)\*\*/g, '$1'); // Remove bold markers
-    text = text.replace(/\n\s*\n/g, '\n\n'); // Normalize blank lines
-  } else {
-    // Try to find raw transcript start (timestamp pattern)
-    const lines = full.split('\n');
-    let startIdx = 0;
-    for (let i = 0; i < lines.length; i++) {
-      if (/^\d{1,2}:\d{2}[:\s]/.test(lines[i].trim())) {
-        startIdx = i;
-        break;
+  }
+  text = text.replace(/\*\*(.*?)\*\*/g, '$1');
+  text = text.replace(/&amp;/g, '&').replace(/&#x27;/g, "'");
+
+  // Split into logical sections (by timestamp or paragraph)
+  const sections = text.split(/(\d{2}:\d{2}:\d{2}\))?/);
+  const queryWords = query.toLowerCase().split(/\s+/);
+
+  // Find most relevant section
+  let bestSection = '';
+  let bestScore = 0;
+
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    const lower = section.toLowerCase();
+    let score = 0;
+    for (const word of queryWords) {
+      const idx = lower.indexOf(word);
+      if (idx !== -1) {
+        score += 1;
+        // Bonus for proximity to other query words
+        const nearby = lower.substring(Math.max(0, idx - 100), Math.min(lower.length, idx + 100));
+        for (const other of queryWords) {
+          if (other !== word && nearby.includes(other)) score += 2;
+        }
       }
     }
-    if (startIdx > 0) {
-      text = lines.slice(startIdx).join('\n').trim();
+    if (score > bestScore && section.trim().length > 50) {
+      bestScore = score;
+      bestSection = section.trim();
     }
   }
 
-  const preview = text.substring(0, 400).replace(/\n/g, ' ');
-  const fullText = text.substring(0, 3000);
+  // If no good section match, just use the beginning
+  const result = bestScore > 0 ? bestSection : text.substring(0, 2000);
 
-  return { preview, full: fullText, hasMore: text.length > 3000 };
+  // Highlight query words
+  let highlighted = result;
+  for (const word of queryWords) {
+    const regex = new RegExp(`(${word})`, 'gi');
+    highlighted = highlighted.replace(regex, '**$1**');
+  }
+
+  return {
+    preview: highlighted.substring(0, 300).replace(/\n/g, ' '),
+    full: highlighted.substring(0, 3000),
+    hasMore: highlighted.length > 3000 || text.length > 3000,
+    hasRelevance: bestScore > 0,
+  };
 }
 
 export async function POST(request) {
@@ -64,15 +84,11 @@ export async function POST(request) {
     const results = await supaRes.json();
 
     const trimmed = results.map(r => {
-      const { preview, full, hasMore } = extractTranscript(r.transcript || '');
+      const { preview, full, hasMore } = findRelevantSection(r.transcript || '', query);
       return {
-        id: r.id,
-        call_date: r.call_date,
-        title: r.title,
+        id: r.id, call_date: r.call_date, title: r.title,
         similarity: Math.round(r.similarity * 100) / 100,
-        preview,
-        full_transcript: full,
-        has_more: hasMore,
+        preview, full_transcript: full, has_more: hasMore,
         report_url: r.drive_file_id ? `https://drive.google.com/file/d/${r.drive_file_id}/view` : null,
       };
     });

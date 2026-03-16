@@ -10,8 +10,7 @@ export default function Home() {
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
-    setLoading(true);
-    setExpanded(null);
+    setLoading(true); setExpanded(null);
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
@@ -22,6 +21,17 @@ export default function Home() {
       setResults(data.results || []);
     } catch (err) { console.error(err); }
     setLoading(false);
+  };
+
+  // Render with highlighted text
+  const renderHighlighted = (text) => {
+    if (!text) return '';
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((p, i) =>
+      p.startsWith('**') && p.endsWith('**')
+        ? <mark key={i} style={{ backgroundColor: '#fff3cd', padding: '2px 4px', borderRadius: 3 }}>{p.slice(2, -2)}</mark>
+        : <span key={i}>{p}</span>
+    );
   };
 
   return (
@@ -38,6 +48,8 @@ export default function Home() {
         </button>
       </form>
 
+      {results.length > 0 && <p style={{ color: '#666', marginBottom: 16 }}>{results.length} results for &ldquo;{query}&rdquo;</p>}
+
       {results.map(r => (
         <div key={r.id} style={{ border: '1px solid #eee', borderRadius: 8, padding: 20, marginBottom: 16, borderLeft: '4px solid ' + (r.similarity > 0.6 ? '#011736' : r.similarity > 0.4 ? '#ff821f' : '#999') }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
@@ -49,18 +61,18 @@ export default function Home() {
           </div>
           <div style={{ color: '#999', fontSize: 14, marginBottom: 12 }}>{r.call_date}</div>
           <div style={{ color: '#444', lineHeight: 1.7, fontSize: 15, whiteSpace: 'pre-wrap' }}>
-            {expanded === r.id ? r.full_transcript : r.preview}
+            {renderHighlighted(expanded === r.id ? r.full_transcript : r.preview)}
             {expanded !== r.id && r.has_more && '...'}
           </div>
           {r.has_more && (
             <button onClick={() => setExpanded(expanded === r.id ? null : r.id)} style={{ background: 'none', border: 'none', color: '#083964', cursor: 'pointer', fontSize: 14, fontWeight: 600, marginTop: 8 }}>
-              {expanded === r.id ? 'Show less' : 'Show more'}
+              {expanded === r.id ? 'Show less' : '\u25BC Show relevant section'}
             </button>
           )}
         </div>
       ))}
 
-      {results.length === 0 && query && !loading && <p style={{ color: '#999', textAlign: 'center' }}>No results.</p>}
+      {results.length === 0 && query && !loading && <p style={{ color: '#999', textAlign: 'center' }}>No results found.</p>}
 
       <div style={{ textAlign: 'center', color: '#999', fontSize: 12, marginTop: 60, borderTop: '1px solid #eee', paddingTop: 20, paddingBottom: 40 }}>
         DMA Weekly Q&amp;A Search &bull; Supabase + OpenAI
