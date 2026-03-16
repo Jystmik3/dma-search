@@ -12,6 +12,7 @@ export default function Home() {
     e.preventDefault();
     if (!query.trim()) return;
     setLoading(true);
+    setExpanded(null);
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
@@ -50,20 +51,20 @@ export default function Home() {
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                   <span style={{ color: '#ff821f', fontWeight: 600, fontSize: 14 }}>{Math.round(r.similarity * 100)}% match</span>
                   {r.report_url && (
-                    <a href={r.report_url} target="_blank" rel="noopener noreferrer" style={{ color: '#083964', fontSize: 14, textDecoration: 'none' }}>&#x1F517; View Report</a>
+                    <a href={r.report_url} target="_blank" rel="noopener noreferrer" style={{ color: '#083964', fontSize: 14, textDecoration: 'none', fontWeight: 600 }}>&#x1F517; Full Transcript</a>
                   )}
                 </div>
               </div>
-              <div style={{ color: '#999', fontSize: 14, marginBottom: 8 }}>{r.call_date}</div>
-              <p style={{ color: '#444', lineHeight: 1.6, marginBottom: 8 }}>
-                {expanded === r.id ? r.full_transcript : (r.preview + '...')}
-              </p>
-              <button
-                onClick={() => setExpanded(expanded === r.id ? null : r.id)}
-                style={{ background: 'none', border: 'none', color: '#083964', cursor: 'pointer', fontSize: 14, padding: 0 }}
-              >
-                {expanded === r.id ? '&#x25B2; Show less' : '&#x25BC; Show more'}
-              </button>
+              <div style={{ color: '#999', fontSize: 14, marginBottom: 12 }}>{r.call_date}</div>
+              <div style={{ color: '#444', lineHeight: 1.7, fontSize: 15, whiteSpace: 'pre-wrap', marginBottom: 8 }}>
+                {expanded === r.id ? r.full_transcript : r.preview}
+                {expanded !== r.id && '...'}
+              </div>
+              {r.has_more && (
+                <button onClick={() => setExpanded(expanded === r.id ? null : r.id)} style={{ background: 'none', border: 'none', color: '#083964', cursor: 'pointer', fontSize: 14, padding: 0, fontWeight: 600 }}>
+                  {expanded === r.id ? '&#x25B2; Show less' : '&#x25BC; Show more'}
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -73,7 +74,7 @@ export default function Home() {
         <p style={{ color: '#999', textAlign: 'center' }}>No results found. Try different keywords.</p>
       )}
 
-      <div style={{ textAlign: 'center', color: '#999', fontSize: 14, marginTop: 60, borderTop: '1px solid #eee', paddingTop: 20 }}>
+      <div style={{ textAlign: 'center', color: '#999', fontSize: 14, marginTop: 60, borderTop: '1px solid #eee', paddingTop: 20, paddingBottom: 40 }}>
         <p>Powered by Supabase + OpenAI</p>
       </div>
     </div>
