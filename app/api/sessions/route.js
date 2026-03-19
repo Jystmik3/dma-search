@@ -5,7 +5,7 @@ export async function GET() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
-    // Get all thoughts and filter for Thursday DMA sessions only
+    // Get all thoughts and filter for DMA sessions only
     const supaRes = await fetch(
       `${supabaseUrl}/rest/v1/thoughts?select=id,content,metadata,topics,created_at&order=created_at.desc`,
       {
@@ -20,23 +20,22 @@ export async function GET() {
 
     const results = await supaRes.json();
     
-    // Filter for DMA sessions on Thursdays only (official weekly Q&A)
-    const thursdaySessions = results.filter(r => {
+    // Filter for DMA sessions only (Thursday official weekly Q&A)
+    const dmaSessions = results.filter(r => {
       const source = r.metadata?.source;
-      const isDMA = source && (source === 'DMA Weekly Q&A' || source.includes('DMA'));
-      if (!isDMA) return false;
+      if (source !== 'DMA Weekly Q&A') return false;
       
       // Check if it's Thursday (day 4)
       const sessionDate = new Date(r.metadata?.date || r.created_at);
       return sessionDate.getDay() === 4; // 4 = Thursday
     });
     
-    const sessions = thursdaySessions.map(r => ({
+    const sessions = dmaSessions.map(r => ({
       id: r.id,
       title: r.metadata?.title || 'Untitled Session',
       date: r.metadata?.date || r.created_at,
       has_video: !!r.metadata?.video_url,
-      has_transcript: r.content && !r.content.includes('Transcript pending'),
+      has_transcript: r.content && r.content.length > 100 && !r.content.includes('Transcript pending'),
       topics: r.topics || [],
     }));
     
