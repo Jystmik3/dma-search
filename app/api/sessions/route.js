@@ -5,9 +5,10 @@ export async function GET() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
-    // Filter for DMA sessions only - where metadata->>source = 'DMA Weekly Q&A'
+    // Get all thoughts and filter for DMA sessions client-side
+    // Supabase JSONB filtering can be tricky with encoded URLs
     const supaRes = await fetch(
-      `${supabaseUrl}/rest/v1/thoughts?metadata->>source=eq.DMA%20Weekly%20Q&A&select=id,content,metadata,topics,created_at&order=created_at.desc`,
+      `${supabaseUrl}/rest/v1/thoughts?select=id,content,metadata,topics,created_at&order=created_at.desc`,
       {
         method: 'GET',
         headers: {
@@ -20,7 +21,13 @@ export async function GET() {
 
     const results = await supaRes.json();
     
-    const sessions = results.map(r => ({
+    // Filter for DMA sessions only
+    const dmaSessions = results.filter(r => {
+      const source = r.metadata?.source;
+      return source && (source === 'DMA Weekly Q&A' || source.includes('DMA'));
+    });
+    
+    const sessions = dmaSessions.map(r => ({
       id: r.id,
       title: r.metadata?.title || 'Untitled Session',
       date: r.metadata?.date || r.created_at,
