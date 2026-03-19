@@ -5,9 +5,9 @@ export async function GET() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
-    // Get all thoughts and filter for DMA sessions only
+    // Get all thoughts with higher limit and filter for DMA sessions only
     const supaRes = await fetch(
-      `${supabaseUrl}/rest/v1/thoughts?select=id,content,metadata,topics,created_at&order=created_at.desc`,
+      `${supabaseUrl}/rest/v1/thoughts?select=id,content,metadata,topics,created_at&order=created_at.desc&limit=1000`,
       {
         method: 'GET',
         headers: {
