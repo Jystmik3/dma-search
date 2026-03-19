@@ -31,13 +31,19 @@ export async function POST(request) {
         'apikey': anonKey,
         'Authorization': `Bearer ${anonKey}`,
       },
-      body: JSON.stringify({ query_embedding: embStr, match_count: 5 }),
+      body: JSON.stringify({ query_embedding: embStr, match_count: 10 }),
     });
 
     const results = await supaRes.json();
 
+    // Filter for Thursday DMA sessions only
+    const thursdayResults = results.filter(r => {
+      const sessionDate = new Date(r.call_date);
+      return sessionDate.getDay() === 4; // 4 = Thursday
+    });
+
     // Trim transcript previews
-    const trimmed = results.map(r => ({
+    const trimmed = thursdayResults.map(r => ({
       id: r.id,
       call_date: r.call_date,
       title: r.title,

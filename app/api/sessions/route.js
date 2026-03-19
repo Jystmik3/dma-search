@@ -5,8 +5,7 @@ export async function GET() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
-    // Get all thoughts and filter for DMA sessions client-side
-    // Supabase JSONB filtering can be tricky with encoded URLs
+    // Get all thoughts and filter for Thursday DMA sessions only
     const supaRes = await fetch(
       `${supabaseUrl}/rest/v1/thoughts?select=id,content,metadata,topics,created_at&order=created_at.desc`,
       {
@@ -21,13 +20,18 @@ export async function GET() {
 
     const results = await supaRes.json();
     
-    // Filter for DMA sessions only
-    const dmaSessions = results.filter(r => {
+    // Filter for DMA sessions on Thursdays only (official weekly Q&A)
+    const thursdaySessions = results.filter(r => {
       const source = r.metadata?.source;
-      return source && (source === 'DMA Weekly Q&A' || source.includes('DMA'));
+      const isDMA = source && (source === 'DMA Weekly Q&A' || source.includes('DMA'));
+      if (!isDMA) return false;
+      
+      // Check if it's Thursday (day 4)
+      const sessionDate = new Date(r.metadata?.date || r.created_at);
+      return sessionDate.getDay() === 4; // 4 = Thursday
     });
     
-    const sessions = dmaSessions.map(r => ({
+    const sessions = thursdaySessions.map(r => ({
       id: r.id,
       title: r.metadata?.title || 'Untitled Session',
       date: r.metadata?.date || r.created_at,
