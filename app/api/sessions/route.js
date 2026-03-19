@@ -19,6 +19,7 @@ export async function GET() {
     );
 
     const results = await supaRes.json();
+    console.log(`Fetched ${results.length} total thoughts`);
     
     // Filter for DMA sessions only (Thursday official weekly Q&A)
     const dmaSessions = results.filter(r => {
@@ -29,6 +30,8 @@ export async function GET() {
       const sessionDate = new Date(r.metadata?.date || r.created_at);
       return sessionDate.getDay() === 4; // 4 = Thursday
     });
+    
+    console.log(`Found ${dmaSessions.length} Thursday DMA sessions`);
     
     const sessions = dmaSessions.map(r => ({
       id: r.id,
