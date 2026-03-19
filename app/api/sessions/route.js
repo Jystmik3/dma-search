@@ -5,14 +5,18 @@ export async function GET() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
-    const supaRes = await fetch(`${supabaseUrl}/rest/v1/thoughts?select=id,content,metadata,topics,created_at&order=created_at.desc`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': anonKey,
-        'Authorization': `Bearer ${anonKey}`,
-      },
-    });
+    // Filter for DMA sessions only - where metadata->>source = 'DMA Weekly Q&A'
+    const supaRes = await fetch(
+      `${supabaseUrl}/rest/v1/thoughts?metadata->>source=eq.DMA%20Weekly%20Q&A&select=id,content,metadata,topics,created_at&order=created_at.desc`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+          'Authorization': `Bearer ${anonKey}`,
+        },
+      }
+    );
 
     const results = await supaRes.json();
     
