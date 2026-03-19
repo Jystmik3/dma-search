@@ -8,31 +8,46 @@ export async function GET() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
-    // Get all records with large limit
-    const supaRes = await fetch(
-      `${supabaseUrl}/rest/v1/thoughts?select=*&order=created_at.desc&limit=1000`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': anonKey,
-          'Authorization': `Bearer ${anonKey}`,
-        },
-        cache: 'no-store',
+    let allResults = [];
+    let offset = 0;
+    const limit = 100;
+    let hasMore = true;
+    
+    // Fetch all pages until we get less than limit results
+    while (hasMore && offset < 2000) {
+      const supaRes = await fetch(
+        `${supabaseUrl}/rest/v1/thoughts?select=*&order=created_at.desc&limit=${limit}&offset=${offset}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': anonKey,
+            'Authorization': `Bearer ${anonKey}`,
+          },
+          cache: 'no-store',
+        }
+      );
+
+      if (!supaRes.ok) {
+        const errorText = await supaRes.text();
+        console.error('Supabase error:', errorText);
+        break;
       }
-    );
 
-    if (!supaRes.ok) {
-      const errorText = await supaRes.text();
-      console.error('Supabase error:', errorText);
-      return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+      const results = await supaRes.json();
+      allResults = allResults.concat(results);
+      
+      if (results.length < limit) {
+        hasMore = false;
+      } else {
+        offset += limit;
+      }
     }
-
-    const results = await supaRes.json();
-    console.log(`Fetched ${results.length} total thoughts from Supabase`);
+    
+    console.log(`Fetched ${allResults.length} total thoughts from Supabase`);
     
     // Filter for DMA sessions only (Thursday official weekly Q&A)
-    const dmaSessions = results.filter(r => {
+    const dmaSessions = allResults.filter(r => {
       const source = r.metadata?.source;
       if (source !== 'DMA Weekly Q&A') return false;
       
