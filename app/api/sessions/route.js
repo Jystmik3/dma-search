@@ -8,9 +8,9 @@ export async function GET() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
-    // Get all thoughts with higher limit and filter for DMA sessions only
+    // Get all records with large limit
     const supaRes = await fetch(
-      `${supabaseUrl}/rest/v1/thoughts?select=id,content,metadata,topics,created_at&order=created_at.desc&limit=1000`,
+      `${supabaseUrl}/rest/v1/thoughts?select=*&order=created_at.desc&limit=1000`,
       {
         method: 'GET',
         headers: {
@@ -22,8 +22,14 @@ export async function GET() {
       }
     );
 
+    if (!supaRes.ok) {
+      const errorText = await supaRes.text();
+      console.error('Supabase error:', errorText);
+      return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+    }
+
     const results = await supaRes.json();
-    console.log(`Fetched ${results.length} total thoughts`);
+    console.log(`Fetched ${results.length} total thoughts from Supabase`);
     
     // Filter for DMA sessions only (Thursday official weekly Q&A)
     const dmaSessions = results.filter(r => {
@@ -47,7 +53,7 @@ export async function GET() {
     }));
     
     return NextResponse.json(
-      { sessions },
+      { sessions, count: sessions.length },
       { 
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
