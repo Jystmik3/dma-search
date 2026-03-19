@@ -42,16 +42,40 @@ export async function POST(request) {
       return sessionDate.getDay() === 4; // 4 = Thursday
     });
 
-    // Trim transcript previews
-    const trimmed = thursdayResults.map(r => ({
-      id: r.id,
-      call_date: r.call_date,
-      title: r.title,
-      similarity: Math.round(r.similarity * 100) / 100,
-      preview: (r.transcript || '').substring(0, 300),
-    }));
+    // Process results with summary and relevant text
+    const processed = thursdayResults.map(r => {
+      const transcript = r.transcript || '';
+      
+      // Extract summary (first 500 chars or first paragraph)
+      const summaryMatch = transcript.match(/Summary[\s\S]*?(?=\n\n|Details|$)/i);
+      const summary = summaryMatch ? summaryMatch[0].substring(0, 400) : transcript.substring(0, 400);
+      
+      // Find relevant section around query match (simple text search)
+      const queryLower = query.toLowerCase();
+      const transcriptLower = transcript.toLowerCase();
+      const matchIndex = transcriptLower.indexOf(queryLower);
+      
+      let relevant_text = null;
+      if (matchIndex !== -1) {
+        const start = Math.max(0, matchIndex - 200);
+        const end = Math.min(transcript.length, matchIndex + query.length + 300);
+        relevant_text = transcript.substring(start, end);
+        if (start > 0) relevant_text = '...' + relevant_text;
+        if (end < transcript.length) relevant_text = relevant_text + '...';
+      }
+      
+      return {
+        id: r.id,
+        call_date: r.call_date,
+        title: r.title,
+        similarity: Math.round(r.similarity * 100) / 100,
+        summary: summary.replace(/\n+/g, ' ').trim(),
+        preview: transcript.substring(0, 300).replace(/\n+/g, ' '),
+        relevant_text: relevant_text,
+      };
+    });
 
-    return NextResponse.json({ results: trimmed });
+    return NextResponse.json({ results: processed });
   } catch (error) {
     console.error('Search error:', error);
     return NextResponse.json({ error: 'Search failed' }, { status: 500 });

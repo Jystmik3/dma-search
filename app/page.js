@@ -6,11 +6,13 @@ export default function Home() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
     setLoading(true);
+    setExpandedId(null);
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
@@ -23,6 +25,12 @@ export default function Home() {
       console.error('Search error:', err);
     }
     setLoading(false);
+  };
+
+  const toggleExpand = (id, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExpandedId(expandedId === id ? null : id);
   };
 
   return (
@@ -65,21 +73,91 @@ export default function Home() {
         <div>
           <p style={{ color: '#666', marginBottom: 16 }}>{results.length} results for "{query}"</p>
           {results.map((r) => (
-            <a key={r.id} href={`/session/${r.id}`} style={{ textDecoration: 'none' }}>
-              <div style={{
-                border: '1px solid #eee', borderRadius: 8, padding: 20, marginBottom: 16,
-                borderLeft: `4px solid ${r.similarity > 0.6 ? '#011736' : r.similarity > 0.4 ? '#ff821f' : '#999'}`,
-                cursor: 'pointer',
-                transition: 'box-shadow 0.2s',
-              }} onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'} onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <strong style={{ color: '#011736', fontSize: 18 }}>{r.title}</strong>
+            <div key={r.id} style={{
+              border: '1px solid #eee', borderRadius: 8, padding: 20, marginBottom: 16,
+              borderLeft: `4px solid ${r.similarity > 0.6 ? '#011736' : r.similarity > 0.4 ? '#ff821f' : '#999'}`,
+              transition: 'box-shadow 0.2s',
+            }}>
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div>
+                  <strong style={{ color: '#011736', fontSize: 18, display: 'block', marginBottom: 4 }}>{r.title}</strong>
                   <span style={{ color: '#ff821f', fontWeight: 600, fontSize: 14 }}>{Math.round(r.similarity * 100)}% match</span>
                 </div>
-                <div style={{ color: '#999', fontSize: 14, marginBottom: 8 }}>{r.call_date}</div>
-                <p style={{ color: '#444', lineHeight: 1.6 }}>{r.preview}...</p>
+                <a 
+                  href={`/session/${r.id}`}
+                  style={{ 
+                    color: '#011736', 
+                    textDecoration: 'none', 
+                    fontSize: 14,
+                    padding: '4px 12px',
+                    border: '1px solid #011736',
+                    borderRadius: 4,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  🔗 Full
+                </a>
               </div>
-            </a>
+              
+              {/* Date */}
+              <div style={{ color: '#999', fontSize: 14, marginBottom: 12 }}>{r.call_date}</div>
+              
+              {/* Summary */}
+              {r.summary && (
+                <div style={{ marginBottom: 12 }}>
+                  <span style={{ color: '#011736', fontWeight: 600, fontSize: 14 }}>📝 Summary</span>
+                  <p style={{ color: '#444', lineHeight: 1.6, margin: '8px 0 0 0' }}>{r.summary}</p>
+                </div>
+              )}
+              
+              {/* Preview */}
+              <p style={{ color: '#444', lineHeight: 1.6, margin: 0 }}>{r.preview}...</p>
+              
+              {/* Expandable relevant section */}
+              {r.relevant_text && (
+                <div style={{ marginTop: 12 }}>
+                  <button
+                    onClick={(e) => toggleExpand(r.id, e)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#011736',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <span>{expandedId === r.id ? '▲' : '▼'}</span>
+                    <span>{expandedId === r.id ? 'Hide' : 'Show'} relevant section</span>
+                  </button>
+                  
+                  {expandedId === r.id && (
+                    <div style={{
+                      marginTop: 12,
+                      padding: 16,
+                      background: '#f9f9f9',
+                      borderRadius: 8,
+                      border: '1px solid #eee'
+                    }}>
+                      <pre style={{
+                        margin: 0,
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'system-ui, sans-serif',
+                        fontSize: 14,
+                        lineHeight: 1.7,
+                        color: '#444'
+                      }}>
+                        {r.relevant_text}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}
