@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,6 +18,7 @@ export async function GET() {
           'apikey': anonKey,
           'Authorization': `Bearer ${anonKey}`,
         },
+        cache: 'no-store',
       }
     );
 
@@ -42,7 +46,16 @@ export async function GET() {
       topics: r.topics || [],
     }));
     
-    return NextResponse.json({ sessions });
+    return NextResponse.json(
+      { sessions },
+      { 
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      }
+    );
   } catch (error) {
     console.error('Sessions fetch error:', error);
     return NextResponse.json({ error: 'Failed to fetch sessions' }, { status: 500 });
