@@ -13,10 +13,9 @@ export async function GET() {
     const limit = 100;
     let hasMore = true;
     
-    // Fetch all pages until we get less than limit results
     while (hasMore && offset < 2000) {
       const supaRes = await fetch(
-        `${supabaseUrl}/rest/v1/thoughts?select=*&order=created_at.desc&limit=${limit}&offset=${offset}`,
+        `${supabaseUrl}/rest/v1/weekly_calls?select=*&order=call_date.desc&limit=${limit}&offset=${offset}`,
         {
           method: 'GET',
           headers: {
@@ -44,26 +43,23 @@ export async function GET() {
       }
     }
     
-    console.log(`Fetched ${allResults.length} total thoughts from Supabase`);
+    console.log(`Fetched ${allResults.length} total sessions from Supabase`);
     
-    // Filter for DMA sessions only (Thursday official weekly Q&A)
     const dmaSessions = allResults.filter(r => {
-      const source = r.metadata?.source;
-      if (source !== 'DMA Weekly Q&A') return false;
-      
-      // Check if it's Thursday (day 4)
-      const sessionDate = new Date(r.metadata?.date || r.created_at);
-      return sessionDate.getDay() === 4; // 4 = Thursday
+      const sessionDate = new Date(r.call_date);
+      return sessionDate.getDay() === 4;
     });
     
     console.log(`Found ${dmaSessions.length} Thursday DMA sessions`);
     
     const sessions = dmaSessions.map(r => ({
       id: r.id,
-      title: r.metadata?.title || 'Untitled Session',
-      date: r.metadata?.date || r.created_at,
-      has_video: !!r.metadata?.video_url,
-      has_transcript: r.content && r.content.length > 100 && !r.content.includes('Transcript pending'),
+      title: r.title || 'Untitled Session',
+      date: r.call_date,
+      has_video: !!r.drive_file_id,
+      has_transcript: r.transcript && r.transcript.length > 100 && !r.transcript.includes('Transcript pending'),
+      transcript_link: r.drive_file_id ? `https://docs.google.com/document/d/${r.drive_file_id}` : null,
+      video_link: r.drive_file_id ? `https://drive.google.com/file/d/${r.drive_file_id}` : null,
       topics: r.topics || [],
     }));
     

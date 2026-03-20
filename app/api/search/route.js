@@ -7,7 +7,38 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 });
     }
 
-    // Get embedding from OpenAI
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!process.env.OPENAI_API_KEY) {
+      const supaRes = await fetch(`${supabaseUrl}/rest/v1/weekly_calls?select=*&order=call_date.desc`, {
+        headers: {
+          'apikey': anonKey,
+          'Authorization': `Bearer ${anonKey}`,
+        },
+      });
+      
+      const allSessions = await supaRes.json();
+      
+      const queryLower = query.toLowerCase();
+      const matches = allSessions.filter(r => {
+        const text = `${r.title} ${r.summary} ${r.transcript}`.toLowerCase();
+        return text.includes(queryLower);
+      }).slice(0, 10);
+      
+      const processed = matches.map(r => ({
+        id: r.id,
+        call_date: r.call_date,
+        title: r.title,
+        similarity: 0.5,
+        summary: r.summary?.substring(0, 400) || '',
+        preview: r.transcript?.substring(0, 300) || '',
+        relevant_text: r.transcript?.includes(queryLower) ? r.transcript.substring(0, 500) : null,
+      }));
+      
+      return NextResponse.json({ results: processed, fallback: true });
+    }
+
     const embRes = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: {
@@ -20,37 +51,25 @@ export async function POST(request) {
     const embedding = embData.data[0].embedding;
     const embStr = '[' + embedding.map(x => x.toFixed(8)).join(',') + ']';
 
-    // Query Supabase match_calls function
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    const supaRes = await fetch(`${supabaseUrl}/rest/v1/rpc/match_calls`, {
+    const supaRes = await fetch(`${supabaseUrl}/rest/v1/rpc/match_weekly_calls`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'apikey': anonKey,
         'Authorization': `Bearer ${anonKey}`,
       },
-      body: JSON.stringify({ query_embedding: embStr, match_count: 10 }),
+      body: JSON.stringify({ 
+        query_embedding: embStr, 
+        match_threshold: 0.0,
+        match_count: 10 
+      }),
     });
 
     const results = await supaRes.json();
 
-    // Filter for Thursday DMA sessions only
-    const thursdayResults = results.filter(r => {
-      const sessionDate = new Date(r.call_date);
-      return sessionDate.getDay() === 4; // 4 = Thursday
-    });
-
-    // Process results with summary and relevant text
-    const processed = thursdayResults.map(r => {
+    const processed = results.map(r => {
       const transcript = r.transcript || '';
       
-      // Extract summary (first 500 chars or first paragraph)
-      const summaryMatch = transcript.match(/Summary[\s\S]*?(?=\n\n|Details|$)/i);
-      const summary = summaryMatch ? summaryMatch[0].substring(0, 400) : transcript.substring(0, 400);
-      
-      // Find relevant section around query match (simple text search)
       const queryLower = query.toLowerCase();
       const transcriptLower = transcript.toLowerCase();
       const matchIndex = transcriptLower.indexOf(queryLower);
@@ -69,7 +88,7 @@ export async function POST(request) {
         call_date: r.call_date,
         title: r.title,
         similarity: Math.round(r.similarity * 100) / 100,
-        summary: summary.replace(/\n+/g, ' ').trim(),
+        summary: r.summary?.substring(0, 400) || transcript.substring(0, 400),
         preview: transcript.substring(0, 300).replace(/\n+/g, ' '),
         relevant_text: relevant_text,
       };
