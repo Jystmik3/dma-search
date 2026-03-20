@@ -6,12 +6,14 @@ export default function Home() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
     setLoading(true);
+    setError(null);
     setExpandedId(null);
     try {
       const res = await fetch('/api/search', {
@@ -20,9 +22,14 @@ export default function Home() {
         body: JSON.stringify({ query }),
       });
       const data = await res.json();
-      setResults(data.results || []);
+      
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setResults(data.results || []);
+      }
     } catch (err) {
-      console.error('Search error:', err);
+      setError('Search failed: ' + err.message);
     }
     setLoading(false);
   };
@@ -43,7 +50,7 @@ export default function Home() {
         </a>
       </div>
 
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 12, marginBottom: 40 }}>
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
         <input
           type="text"
           value={query}
@@ -69,6 +76,12 @@ export default function Home() {
         </button>
       </form>
 
+      {error && (
+        <div style={{ padding: 16, background: '#ffebee', borderRadius: 8, marginBottom: 20, color: '#c62828' }}>
+          ❌ Error: {error}
+        </div>
+      )}
+
       {results.length > 0 && (
         <div>
           <p style={{ color: '#666', marginBottom: 16 }}>{results.length} results for "{query}"</p>
@@ -76,24 +89,14 @@ export default function Home() {
             <div key={r.id} style={{
               border: '1px solid #eee', borderRadius: 8, padding: 20, marginBottom: 16,
               borderLeft: `4px solid ${r.similarity > 0.6 ? '#011736' : r.similarity > 0.4 ? '#ff821f' : '#999'}`,
-              transition: 'box-shadow 0.2s',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
                   <strong style={{ color: '#011736', fontSize: 18, display: 'block', marginBottom: 4 }}>{r.title}</strong>
                   <span style={{ color: '#ff821f', fontWeight: 600, fontSize: 14 }}>{Math.round(r.similarity * 100)}% match</span>
                 </div>
-                <a 
-                  href={`/session/${r.id}`}
-                  style={{ 
-                    color: '#011736', 
-                    textDecoration: 'none', 
-                    fontSize: 14,
-                    padding: '4px 12px',
-                    border: '1px solid #011736',
-                    borderRadius: 4,
-                    whiteSpace: 'nowrap'
-                  }}
+                <a href={`/session/${r.id}`}
+                  style={{ color: '#011736', textDecoration: 'none', fontSize: 14, padding: '4px 12px', border: '1px solid #011736', borderRadius: 4 }}
                 >
                   🔗 Full
                 </a>
@@ -111,40 +114,15 @@ export default function Home() {
               
               {r.relevant_text && (
                 <div style={{ marginTop: 12 }}>
-                  <button
-                    onClick={(e) => toggleExpand(r.id, e)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#011736',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      padding: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4
-                    }}
+                  <button onClick={(e) => toggleExpand(r.id, e)}
+                    style={{ background: 'none', border: 'none', color: '#011736', cursor: 'pointer', fontSize: 14 }}
                   >
-                    <span>{expandedId === r.id ? '▲' : '▼'}</span>
-                    <span>{expandedId === r.id ? 'Hide' : 'Show'} relevant section</span>
+                    {expandedId === r.id ? '▲ Hide' : '▼ Show'} relevant section
                   </button>
                   
                   {expandedId === r.id && (
-                    <div style={{
-                      marginTop: 12,
-                      padding: 16,
-                      background: '#f9f9f9',
-                      borderRadius: 8,
-                      border: '1px solid #eee'
-                    }}>
-                      <pre style={{
-                        margin: 0,
-                        whiteSpace: 'pre-wrap',
-                        fontFamily: 'system-ui, sans-serif',
-                        fontSize: 14,
-                        lineHeight: 1.7,
-                        color: '#444'
-                      }}>
+                    <div style={{ marginTop: 12, padding: 16, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee' }}>
+                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'system-ui, sans-serif', fontSize: 14, lineHeight: 1.7, color: '#444' }}>
                         {r.relevant_text}
                       </pre>
                     </div>
