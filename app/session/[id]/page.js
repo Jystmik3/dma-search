@@ -26,6 +26,13 @@ export default function SessionPage({ params }) {
   const videoUrl = session.metadata?.video_url;
   const videoId = videoUrl ? videoUrl.match(/\/d\/(.*?)(\/|\?|$)/)?.[1] : null;
   const embedUrl = videoId ? `https://drive.google.com/file/d/${videoId}/preview` : null;
+  
+  // Check for transcript link in content or metadata
+  const transcriptUrl = session.metadata?.transcript_url;
+  const content = session.content || '';
+  const hasFullTranscript = content.length > 500 && !content.includes('Transcript pending');
+  const hasTranscriptLink = content.includes('docs.google.com') || transcriptUrl;
+  const transcriptLink = transcriptUrl || (content.match(/https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+/)?.[0]);
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 20px', fontFamily: 'system-ui, sans-serif' }}>
@@ -74,7 +81,7 @@ export default function SessionPage({ params }) {
                 fontSize: 14 
               }}
             >
-              Open in Google Drive ↗
+              Open Video in Google Drive ↗
             </a>
           )}
         </div>
@@ -88,16 +95,55 @@ export default function SessionPage({ params }) {
           borderRadius: 8,
           border: '1px solid #eee'
         }}>
-          <h3 style={{ marginTop: 0, color: '#011736', fontSize: 18 }}>Transcript</h3>
-          <pre style={{ 
-            whiteSpace: 'pre-wrap', 
-            fontSize: 14, 
-            lineHeight: 1.7,
-            color: '#444',
-            fontFamily: 'system-ui, sans-serif'
-          }}>
-            {session.content || 'Transcript not yet available'}
-          </pre>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, color: '#011736', fontSize: 18 }}>Transcript</h3>
+            {transcriptLink && (
+              <a 
+                href={transcriptLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: '#ff821f',
+                  fontSize: 13,
+                  textDecoration: 'none',
+                  padding: '6px 12px',
+                  border: '1px solid #ff821f',
+                  borderRadius: 4
+                }}
+              >
+                📄 Full Transcript ↗
+              </a>
+            )}
+          </div>
+          
+          {hasFullTranscript ? (
+            <pre style={{ 
+              whiteSpace: 'pre-wrap', 
+              fontSize: 14, 
+              lineHeight: 1.7,
+              color: '#444',
+              fontFamily: 'system-ui, sans-serif',
+              margin: 0
+            }}>
+              {content}
+            </pre>
+          ) : hasTranscriptLink ? (
+            <div style={{ color: '#666', fontSize: 14 }}>
+              <p>Full transcript available via Google Docs.</p>
+              <a 
+                href={transcriptLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#ff821f', fontSize: 14 }}
+              >
+                Open Full Transcript →
+              </a>
+            </div>
+          ) : (
+            <div style={{ color: '#999', fontSize: 14 }}>
+              {content.includes('Transcript pending') ? 'Transcript not yet available.' : content}
+            </div>
+          )}
         </div>
       </div>
 
