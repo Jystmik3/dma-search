@@ -78,7 +78,6 @@ export default function Home() {
               borderLeft: `4px solid ${r.similarity > 0.6 ? '#011736' : r.similarity > 0.4 ? '#ff821f' : '#999'}`,
               transition: 'box-shadow 0.2s',
             }}>
-              {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
                   <strong style={{ color: '#011736', fontSize: 18, display: 'block', marginBottom: 4 }}>{r.title}</strong>
@@ -99,11 +98,8 @@ export default function Home() {
                   🔗 Full
                 </a>
               </div>
-              
-              {/* Date */}
               <div style={{ color: '#999', fontSize: 14, marginBottom: 12 }}>{r.call_date}</div>
               
-              {/* Summary */}
               {r.summary && (
                 <div style={{ marginBottom: 12 }}>
                   <span style={{ color: '#011736', fontWeight: 600, fontSize: 14 }}>📝 Summary</span>
@@ -111,10 +107,8 @@ export default function Home() {
                 </div>
               )}
               
-              {/* Preview */}
               <p style={{ color: '#444', lineHeight: 1.6, margin: 0 }}>{r.preview}...</p>
               
-              {/* Expandable relevant section */}
               {r.relevant_text && (
                 <div style={{ marginTop: 12 }}>
                   <button
