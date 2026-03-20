@@ -1,170 +1,192 @@
 'use client';
-
 import { useEffect, useState } from 'react';
+
+const BRAND = '#011736';
+const ACCENT = '#ff821f';
 
 export default function SessionPage({ params }) {
   const { id } = params;
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetch(`/api/session/${id}`)
       .then(r => r.json())
       .then(data => {
-        setSession(data);
+        if (data.error) setError(data.error);
+        else setSession(data);
         setLoading(false);
       })
       .catch(err => {
-        console.error(err);
+        setError(err.message);
         setLoading(false);
       });
   }, [id]);
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 60 }}>Loading...</div>;
-  if (!session) return <div style={{ textAlign: 'center', padding: 60 }}>Session not found</div>;
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: 80, fontFamily: 'system-ui, sans-serif', color: '#888' }}>
+        Loading session…
+      </div>
+    );
+  }
 
-  const videoUrl = session.metadata?.video_url;
-  const videoId = videoUrl ? videoUrl.match(/\/d\/(.*?)(\/|\?|$)/)?.[1] : null;
-  const embedUrl = videoId ? `https://drive.google.com/file/d/${videoId}/preview` : null;
-  
-  const transcriptUrl = session.metadata?.transcript_url;
+  if (error || !session) {
+    return (
+      <div style={{ textAlign: 'center', padding: 80, fontFamily: 'system-ui, sans-serif' }}>
+        <div style={{ color: '#c62828', marginBottom: 16 }}>❌ {error || 'Session not found'}</div>
+        <a href="/browse" style={{ color: ACCENT }}>← Back to sessions</a>
+      </div>
+    );
+  }
+
+  // drive_file_id is a Google Docs document (meeting notes)
+  const driveFileId = session.metadata?.drive_file_id;
+  const docsUrl = driveFileId ? `https://docs.google.com/document/d/${driveFileId}` : null;
+  // video_url is the Google Drive video embed URL
+  const videoUrl = session.video_url || null;
+
   const content = session.content || '';
   const hasFullTranscript = content.length > 500 && !content.includes('Transcript pending');
-  const hasTranscriptLink = content.includes('docs.google.com') || transcriptUrl;
-  const transcriptLink = transcriptUrl || (content.match(/https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+/)?.[0]);
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 20px', fontFamily: 'system-ui, sans-serif' }}>
-      <a href="/" style={{ color: '#011736', textDecoration: 'none', fontSize: 14 }}>← Back to Search</a>
-      
-      <h1 style={{ color: '#011736', fontSize: 28, marginTop: 20, marginBottom: 8 }}>
-        {session.metadata?.title || 'DMA Session'}
-      </h1>
-      <div style={{ color: '#666', marginBottom: 24 }}>
-        {session.metadata?.date} • DMA Weekly Q&A
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+
+      {/* Nav */}
+      <div style={{ marginBottom: 24, display: 'flex', gap: 16, fontSize: 14 }}>
+        <a href="/" style={{ color: BRAND, textDecoration: 'none' }}>← Search</a>
+        <span style={{ color: '#ccc' }}>|</span>
+        <a href="/browse" style={{ color: BRAND, textDecoration: 'none' }}>📼 Browse all</a>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
-        {/* Video Player */}
-        <div>
-          {embedUrl ? (
-            <iframe
-              src={embedUrl}
-              width="100%"
-              height="400"
-              style={{ border: '1px solid #ddd', borderRadius: 8 }}
-              allow="autoplay; fullscreen"
-            />
-          ) : (
-            <div style={{ 
-              height: 400, 
-              background: '#f5f5f5', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              borderRadius: 8,
-              color: '#999'
-            }}>
-              No video available
-            </div>
-          )}
-          {videoUrl && (
-            <a 
-              href={videoUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              style={{ 
-                display: 'inline-block', 
-                marginTop: 12, 
-                color: '#ff821f',
-                fontSize: 14 
-              }}
-            >
-              Open Video in Google Drive ↗
-            </a>
-          )}
-        </div>
+      {/* Title */}
+      <h1 style={{ color: BRAND, fontSize: 26, marginTop: 0, marginBottom: 6, fontWeight: 700 }}>
+        {session.title}
+      </h1>
+      <div style={{ color: '#888', marginBottom: 28, fontSize: 14 }}>
+        📅 {session.call_date} · DMA Weekly Q&amp;A
+      </div>
 
-        {/* Transcript */}
-        <div style={{ 
-          maxHeight: 450, 
-          overflow: 'auto', 
-          padding: 20, 
-          background: '#f9f9f9', 
-          borderRadius: 8,
-          border: '1px solid #eee'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0, color: '#011736', fontSize: 18 }}>Transcript</h3>
-            {transcriptLink && (
-              <a 
-                href={transcriptLink}
+      {/* Main grid: left panel + transcript */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+        gap: 28,
+        alignItems: 'start',
+      }}>
+
+        {/* ── Left panel: Recording + Summary + Topics ── */}
+        <div>
+
+          {/* Recording card */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h2 style={{ color: BRAND, fontSize: 17, margin: 0 }}>📹 Recording</h2>
+            {docsUrl && (
+              <a
+                href={docsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  color: '#ff821f',
-                  fontSize: 13,
-                  textDecoration: 'none',
-                  padding: '6px 12px',
-                  border: '1px solid #ff821f',
-                  borderRadius: 4
-                }}
+                style={{ color: ACCENT, fontSize: 13, textDecoration: 'none', fontWeight: 600, padding: '5px 12px', border: `1px solid ${ACCENT}`, borderRadius: 6 }}
               >
-                📄 Full Transcript ↗
+                ↗ Meeting Notes
               </a>
             )}
           </div>
-          
-          {hasFullTranscript ? (
-            <pre style={{ 
-              whiteSpace: 'pre-wrap', 
-              fontSize: 14, 
-              lineHeight: 1.7,
-              color: '#444',
-              fontFamily: 'system-ui, sans-serif',
-              margin: 0
-            }}>
-              {content}
-            </pre>
-          ) : hasTranscriptLink ? (
-            <div style={{ color: '#666', fontSize: 14 }}>
-              <p>Full transcript available via Google Docs.</p>
-              <a 
-                href={transcriptLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: '#ff821f', fontSize: 14 }}
-              >
-                Open Full Transcript →
-              </a>
+          {videoUrl ? (
+            <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', borderRadius: 10, overflow: 'hidden', border: '1px solid #e8edf5' }}>
+              <iframe
+                src={videoUrl}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                allow="autoplay"
+                allowFullScreen
+              />
             </div>
           ) : (
-            <div style={{ color: '#999', fontSize: 14 }}>
-              {content.includes('Transcript pending') ? 'Transcript not yet available.' : content}
+            <div style={{ background: '#f5f7fa', borderRadius: 10, border: '1px solid #e8edf5', padding: 32, textAlign: 'center' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🎬</div>
+              <p style={{ color: '#aaa', fontSize: 13, margin: 0 }}>No recording available for this session.</p>
+            </div>
+          )}
+
+          {/* Summary */}
+          {session.summary && (
+            <div style={{ marginTop: 24, padding: 18, background: '#f7f9fc', borderRadius: 10, border: '1px solid #e8edf5' }}>
+              <h3 style={{ margin: '0 0 10px', color: BRAND, fontSize: 15 }}>📝 Summary</h3>
+              <p style={{ margin: 0, color: '#444', lineHeight: 1.7, fontSize: 14 }}>{session.summary}</p>
+            </div>
+          )}
+
+          {/* Topics */}
+          {session.topics && session.topics.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <span style={{ color: BRAND, fontWeight: 600, fontSize: 13 }}>Topics: </span>
+              {session.topics.map(t => (
+                <span key={t} style={{
+                  display: 'inline-block', padding: '3px 10px',
+                  background: `${ACCENT}20`, color: ACCENT, borderRadius: 12,
+                  fontSize: 12, marginRight: 6, marginTop: 4,
+                }}>
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Key takeaways */}
+          {session.key_takeaways && (
+            <div style={{ marginTop: 20, padding: 18, background: `${BRAND}08`, borderRadius: 10, border: `1px solid ${BRAND}20` }}>
+              <h3 style={{ margin: '0 0 10px', color: BRAND, fontSize: 15 }}>🎯 Key Takeaways</h3>
+              <p style={{ margin: 0, color: '#333', lineHeight: 1.7, fontSize: 14, whiteSpace: 'pre-wrap' }}>
+                {session.key_takeaways}
+              </p>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Topics */}
-      {session.topics && session.topics.length > 0 && (
-        <div style={{ marginTop: 30 }}>
-          <strong style={{ color: '#011736', fontSize: 14 }}>Topics: </strong>
-          {session.topics.map(t => (
-            <span key={t} style={{ 
-              display: 'inline-block', 
-              padding: '4px 12px', 
-              background: '#ff821f20', 
-              color: '#ff821f',
-              borderRadius: 12,
-              fontSize: 12,
-              marginRight: 8
-            }}>
-              {t}
-            </span>
-          ))}
+        {/* ── Transcript ── */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h2 style={{ color: BRAND, fontSize: 17, margin: 0 }}>📄 Transcript</h2>
+            {docsUrl && (
+              <a
+                href={docsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: ACCENT, fontSize: 13, textDecoration: 'none',
+                  fontWeight: 600, padding: '5px 12px',
+                  border: `1px solid ${ACCENT}`, borderRadius: 6,
+                }}
+              >
+                ↗ Open in Google Docs
+              </a>
+            )}
+          </div>
+
+          <div style={{
+            maxHeight: 600, overflowY: 'auto',
+            padding: 20, background: '#f9fafb',
+            borderRadius: 10, border: '1px solid #e8edf5',
+          }}>
+            {hasFullTranscript ? (
+              <pre style={{
+                whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.8,
+                color: '#333', fontFamily: 'system-ui, sans-serif', margin: 0,
+              }}>
+                {content}
+              </pre>
+            ) : (
+              <div style={{ color: '#999', fontSize: 14, textAlign: 'center', padding: 40 }}>
+                {content.includes('Transcript pending')
+                  ? '⏳ Transcript not yet available for this session.'
+                  : content || 'No transcript available.'}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+
+      </div>
     </div>
   );
 }

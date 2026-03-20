@@ -3,78 +3,82 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
 export async function GET() {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    
-    let allResults = [];
+    // ── Paginated fetch: 100 rows at a time until all records are retrieved ──
+    // Filters server-side for day_of_week = Thursday to avoid JS timezone bugs.
+    let allSessions = [];
     let offset = 0;
     const limit = 100;
     let hasMore = true;
-    
-    // Fetch all pages from weekly_calls table
-    while (hasMore && offset < 2000) {
-      const supaRes = await fetch(
-        `${supabaseUrl}/rest/v1/weekly_calls?select=*&order=call_date.desc&limit=${limit}&offset=${offset}`,
+
+    while (hasMore) {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/weekly_calls` +
+        `?select=id,call_date,day_of_week,title,summary,drive_file_id,video_url,topics,transcript` +
+        `&day_of_week=eq.Thursday` +
+        `&order=call_date.asc` +
+        `&limit=${limit}&offset=${offset}`,
         {
-          method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
-            'apikey': anonKey,
-            'Authorization': `Bearer ${anonKey}`,
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
           },
           cache: 'no-store',
         }
       );
 
-      if (!supaRes.ok) {
-        const errorText = await supaRes.text();
-        console.error('Supabase error:', errorText);
-        break;
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Supabase error ${res.status}: ${err}`);
       }
 
-      const results = await supaRes.json();
-      allResults = allResults.concat(results);
-      
-      if (results.length < limit) {
+      const rows = await res.json();
+      allSessions = allSessions.concat(rows);
+
+      if (rows.length < limit) {
         hasMore = false;
       } else {
         offset += limit;
       }
     }
-    
-    console.log(`Fetched ${allResults.length} total sessions from Supabase`);
-    
-    // Filter for Thursday DMA sessions only
-    const dmaSessions = allResults.filter(r => {
-      const sessionDate = new Date(r.call_date);
-      return sessionDate.getDay() === 4; // 4 = Thursday
-    });
-    
-    console.log(`Found ${dmaSessions.length} Thursday DMA sessions`);
-    
-    const sessions = dmaSessions.map(r => ({
+
+    // ── Map each row to a clean session object ────────────────────────────
+    const sessions = allSessions.map(r => ({
       id: r.id,
-      title: r.title || 'Untitled Session',
+      title: r.title || `DMA Q&A – ${r.call_date}`,
       date: r.call_date,
-      has_video: !!r.drive_file_id,
-      has_transcript: r.transcript && r.transcript.length > 100 && !r.transcript.includes('Transcript pending'),
+      day_of_week: r.day_of_week,
+      summary: r.summary || null,
       topics: r.topics || [],
+      // Google Drive embed URL for the video player (from video_url column)
+      video_url: r.video_url || null,
+      drive_file_id: r.drive_file_id || null,
+      has_video: !!r.video_url,
+      has_transcript: !!(
+        r.transcript &&
+        r.transcript.length > 100 &&
+        !r.transcript.includes('Transcript pending')
+      ),
     }));
-    
+
     return NextResponse.json(
       { sessions, count: sessions.length },
-      { 
+      {
         headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
           'Pragma': 'no-cache',
-          'Expires': '0',
-        }
+        },
       }
     );
   } catch (error) {
-    console.error('Sessions fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch sessions' }, { status: 500 });
+    console.error('[/api/sessions] Error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to fetch sessions' },
+      { status: 500 }
+    );
   }
 }

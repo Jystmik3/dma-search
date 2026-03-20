@@ -1,67 +1,128 @@
 import { NextResponse } from 'next/server';
 
-const SUPABASE_URL = 'https://lbxotveawzzncgnodnfs.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxieG90dmVhd3p6bmNnbm9kbmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1ODg2ODQsImV4cCI6MjA4ODE2NDY4NH0.psY66aJrUcTUGctYPWJF5wVHUgZl7R38G8vvq2GLP64';
+export const dynamic = 'force-dynamic';
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export async function POST(request) {
   try {
-    const { query } = await request.json();
-    if (!query) {
-      return NextResponse.json({ error: 'Query required' }, { status: 400 });
+    const body = await request.json();
+    const { query } = body;
+
+    if (!query || !query.trim()) {
+      return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
 
-    const supaRes = await fetch(`${SUPABASE_URL}/rest/v1/weekly_calls?select=*&order=call_date.desc`, {
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-      },
+    const queryLower = query.toLowerCase().trim();
+
+    // ── Paginated fetch of all Thursday sessions ─────────────────────────
+    // Fetches 100 records at a time to ensure all sessions are searched.
+    let allSessions = [];
+    let offset = 0;
+    const limit = 100;
+    let hasMore = true;
+
+    while (hasMore) {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/weekly_calls` +
+        `?select=id,call_date,title,summary,transcript,drive_file_id,video_url,topics` +
+        `&day_of_week=eq.Thursday` +
+        `&order=call_date.desc` +
+        `&limit=${limit}&offset=${offset}`,
+        {
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+          },
+          cache: 'no-store',
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Supabase error ${res.status}: ${err}`);
+      }
+
+      const rows = await res.json();
+
+      if (!Array.isArray(rows)) {
+        throw new Error('Unexpected response from database');
+      }
+
+      allSessions = allSessions.concat(rows);
+
+      if (rows.length < limit) {
+        hasMore = false;
+      } else {
+        offset += limit;
+      }
+    }
+
+    // ── Full-text search across title + summary + transcript ─────────────
+    const matches = allSessions
+      .filter(r => {
+        const searchable = [
+          r.title || '',
+          r.summary || '',
+          r.transcript || '',
+        ].join(' ').toLowerCase();
+        return searchable.includes(queryLower);
+      })
+      .slice(0, 15); // Return top 15 matches
+
+    // ── Shape results ────────────────────────────────────────────────────
+    const results = matches.map(r => {
+      const transcript = r.transcript || '';
+      const transcriptLower = transcript.toLowerCase();
+
+      // Find the most relevant snippet around the match
+      let relevantText = null;
+      const matchIdx = transcriptLower.indexOf(queryLower);
+      if (matchIdx !== -1) {
+        const start = Math.max(0, matchIdx - 150);
+        const end = Math.min(transcript.length, matchIdx + query.length + 300);
+        let snippet = transcript.substring(start, end);
+        if (start > 0) snippet = '...' + snippet;
+        if (end < transcript.length) snippet = snippet + '...';
+        relevantText = snippet;
+      }
+
+      // Calculate a simple relevance score
+      const titleMatch = (r.title || '').toLowerCase().includes(queryLower) ? 0.3 : 0;
+      const summaryMatch = (r.summary || '').toLowerCase().includes(queryLower) ? 0.2 : 0;
+      const transcriptMatches = (transcript.match(new RegExp(queryLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
+      const transcriptScore = Math.min(0.5, transcriptMatches * 0.05);
+      const similarity = Math.min(1, 0.4 + titleMatch + summaryMatch + transcriptScore);
+
+      return {
+        id: r.id,
+        title: r.title || `DMA Q&A – ${r.call_date}`,
+        call_date: r.call_date,
+        similarity,
+        summary: (r.summary || '').substring(0, 400),
+        preview: transcript.substring(0, 300),
+        relevant_text: relevantText,
+        has_video: !!r.video_url,
+        video_url: r.video_url || null,
+        topics: r.topics || [],
+      };
     });
-    
-    if (!supaRes.ok) {
-      const errorText = await supaRes.text();
-      console.error('Supabase error:', supaRes.status, errorText);
-      return NextResponse.json({ 
-        error: 'Database query failed', 
-        status: supaRes.status,
-        details: errorText 
-      }, { status: 500 });
-    }
-    
-    const allSessions = await supaRes.json();
-    
-    if (!Array.isArray(allSessions)) {
-      console.error('Unexpected response:', allSessions);
-      return NextResponse.json({ error: 'Invalid database response' }, { status: 500 });
-    }
-    
-    const queryLower = query.toLowerCase();
-    const matches = allSessions.filter(r => {
-      const text = `${r.title} ${r.summary} ${r.transcript}`.toLowerCase();
-      return text.includes(queryLower);
-    }).slice(0, 10);
-    
-    const processed = matches.map(r => ({
-      id: r.id,
-      call_date: r.call_date,
-      title: r.title,
-      similarity: 0.5,
-      summary: r.summary?.substring(0, 400) || '',
-      preview: r.transcript?.substring(0, 300) || '',
-      relevant_text: r.transcript?.includes(queryLower) ? 
-        (() => {
-          const idx = r.transcript.toLowerCase().indexOf(queryLower);
-          const start = Math.max(0, idx - 100);
-          const end = Math.min(r.transcript.length, idx + query.length + 200);
-          let text = r.transcript.substring(start, end);
-          if (start > 0) text = '...' + text;
-          if (end < r.transcript.length) text = text + '...';
-          return text;
-        })() : null,
-    }));
-    
-    return NextResponse.json({ results: processed, count: processed.length });
+
+    // Sort by similarity descending
+    results.sort((a, b) => b.similarity - a.similarity);
+
+    return NextResponse.json({
+      results,
+      count: results.length,
+      total_searched: allSessions.length,
+      query,
+    });
   } catch (error) {
-    console.error('Search error:', error);
-    return NextResponse.json({ error: 'Search failed: ' + error.message }, { status: 500 });
+    console.error('[/api/search] Error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Search failed' },
+      { status: 500 }
+    );
   }
 }
