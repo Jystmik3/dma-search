@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+// Force rebuild - timestamp: 2026-03-20
+
 export async function POST(request) {
   try {
     const { query } = await request.json();
