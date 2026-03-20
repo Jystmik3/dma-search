@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 
+// Temporarily hardcoded for debugging
+const SUPABASE_URL = 'https://lbxotveawzzncgnodnfs.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxieG90dmVhd3p6bmNnbm9kbmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEwNjY1NjUsImV4cCI6MjA1NjY0MjU2NX0.4WYOieWm6eXv3QvLx7X7X7X7X7X7X7X7X7X7X7X7X7X7'; // Truncated for security
+
 export async function POST(request) {
   try {
     const { query } = await request.json();
@@ -7,21 +11,22 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    // Always use text search fallback (reliable)
-    const supaRes = await fetch(`${supabaseUrl}/rest/v1/weekly_calls?select=*&order=call_date.desc`, {
+    // Use hardcoded values
+    const supaRes = await fetch(`${SUPABASE_URL}/rest/v1/weekly_calls?select=*&order=call_date.desc`, {
       headers: {
-        'apikey': anonKey,
-        'Authorization': `Bearer ${anonKey}`,
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
       },
     });
     
     if (!supaRes.ok) {
       const errorText = await supaRes.text();
-      console.error('Supabase error:', errorText);
-      return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+      console.error('Supabase error:', supaRes.status, errorText);
+      return NextResponse.json({ 
+        error: 'Database query failed', 
+        status: supaRes.status,
+        details: errorText 
+      }, { status: 500 });
     }
     
     const allSessions = await supaRes.json();
@@ -56,7 +61,7 @@ export async function POST(request) {
         })() : null,
     }));
     
-    return NextResponse.json({ results: processed });
+    return NextResponse.json({ results: processed, count: processed.length });
   } catch (error) {
     console.error('Search error:', error);
     return NextResponse.json({ error: 'Search failed: ' + error.message }, { status: 500 });
