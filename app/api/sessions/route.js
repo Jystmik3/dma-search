@@ -13,6 +13,7 @@ export async function GET() {
     const limit = 100;
     let hasMore = true;
     
+    // Fetch all pages from weekly_calls table
     while (hasMore && offset < 2000) {
       const supaRes = await fetch(
         `${supabaseUrl}/rest/v1/weekly_calls?select=*&order=call_date.desc&limit=${limit}&offset=${offset}`,
@@ -45,9 +46,10 @@ export async function GET() {
     
     console.log(`Fetched ${allResults.length} total sessions from Supabase`);
     
+    // Filter for Thursday DMA sessions only
     const dmaSessions = allResults.filter(r => {
       const sessionDate = new Date(r.call_date);
-      return sessionDate.getDay() === 4;
+      return sessionDate.getDay() === 4; // 4 = Thursday
     });
     
     console.log(`Found ${dmaSessions.length} Thursday DMA sessions`);
@@ -58,8 +60,6 @@ export async function GET() {
       date: r.call_date,
       has_video: !!r.drive_file_id,
       has_transcript: r.transcript && r.transcript.length > 100 && !r.transcript.includes('Transcript pending'),
-      transcript_link: r.drive_file_id ? `https://docs.google.com/document/d/${r.drive_file_id}` : null,
-      video_link: r.drive_file_id ? `https://drive.google.com/file/d/${r.drive_file_id}` : null,
       topics: r.topics || [],
     }));
     
