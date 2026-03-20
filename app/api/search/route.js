@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 
-// Force rebuild - timestamp: 2026-03-20
-
 export async function POST(request) {
   try {
     const { query } = await request.json();
@@ -12,6 +10,7 @@ export async function POST(request) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+    // Fallback to text search if no OpenAI key
     if (!process.env.OPENAI_API_KEY) {
       const supaRes = await fetch(`${supabaseUrl}/rest/v1/weekly_calls?select=*&order=call_date.desc`, {
         headers: {
@@ -41,6 +40,7 @@ export async function POST(request) {
       return NextResponse.json({ results: processed, fallback: true });
     }
 
+    // Get embedding from OpenAI
     const embRes = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: {
@@ -49,10 +49,18 @@ export async function POST(request) {
       },
       body: JSON.stringify({ model: 'text-embedding-3-small', input: query }),
     });
+    
+    if (!embRes.ok) {
+      const errorText = await embRes.text();
+      console.error('OpenAI error:', errorText);
+      return NextResponse.json({ error: 'Failed to generate embedding' }, { status: 500 });
+    }
+    
     const embData = await embRes.json();
     const embedding = embData.data[0].embedding;
     const embStr = '[' + embedding.map(x => x.toFixed(8)).join(',') + ']';
 
+    // Query Supabase
     const supaRes = await fetch(`${supabaseUrl}/rest/v1/rpc/match_weekly_calls`, {
       method: 'POST',
       headers: {
@@ -67,7 +75,19 @@ export async function POST(request) {
       }),
     });
 
+    if (!supaRes.ok) {
+      const errorText = await supaRes.text();
+      console.error('Supabase error:', errorText);
+      return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+    }
+
     const results = await supaRes.json();
+    
+    // Handle case where results is not an array
+    if (!Array.isArray(results)) {
+      console.error('Unexpected response format:', results);
+      return NextResponse.json({ error: 'Invalid response from database' }, { status: 500 });
+    }
 
     const processed = results.map(r => {
       const transcript = r.transcript || '';
@@ -99,6 +119,6 @@ export async function POST(request) {
     return NextResponse.json({ results: processed });
   } catch (error) {
     console.error('Search error:', error);
-    return NextResponse.json({ error: 'Search failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Search failed: ' + error.message }, { status: 500 });
   }
 }
