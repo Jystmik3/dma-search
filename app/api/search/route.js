@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 
-// Temporarily hardcoded for debugging
 const SUPABASE_URL = 'https://lbxotveawzzncgnodnfs.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxieG90dmVhd3p6bmNnbm9kbmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEwNjY1NjUsImV4cCI6MjA1NjY0MjU2NX0.4WYOieWm6eXv3QvLx7X7X7X7X7X7X7X7X7X7X7X7X7X7'; // Truncated for security
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxieG90dmVhd3p6bmNnbm9kbmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1ODg2ODQsImV4cCI6MjA4ODE2NDY4NH0.psY66aJrUcTUGctYPWJF5wVHUgZl7R38G8vvq2GLP64';
 
 export async function POST(request) {
   try {
@@ -11,7 +10,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Query required' }, { status: 400 });
     }
 
-    // Use hardcoded values
     const supaRes = await fetch(`${SUPABASE_URL}/rest/v1/weekly_calls?select=*&order=call_date.desc`, {
       headers: {
         'apikey': SUPABASE_KEY,
