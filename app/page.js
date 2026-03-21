@@ -51,93 +51,86 @@ export default function Home() {
   };
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{ maxWidth: 860, margin: '0 auto', padding: '40px 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
-      {/* Hero: Molle + Search */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 40, marginBottom: searched ? 32 : 48,
-        flexWrap: 'wrap',
-      }}>
-        {/* Molle image — shown only before search */}
-        {!searched && (
-          <div style={{ flexShrink: 0, textAlign: 'center' }}>
-            <img
-              src="/molle.png"
-              alt="Molle — DMA Search mascot"
-              style={{ width: 220, height: 'auto', borderRadius: 16, display: 'block' }}
-            />
-            <p style={{ color: '#888', fontSize: 12, margin: '8px 0 0', fontStyle: 'italic' }}>
-              Molle knows where it&apos;s at!
-            </p>
-          </div>
-        )}
-
-        {/* Title + search form */}
-        <div style={{ flex: 1, minWidth: 280 }}>
-          {searched && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <img src="/molle.png" alt="Molle" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover' }} />
-              <h1 style={{ color: BRAND, fontSize: 22, margin: 0, fontWeight: 700 }}>DMA Q&amp;A Search</h1>
-            </div>
-          )}
-          {!searched && (
-            <>
-              <h1 style={{ color: BRAND, fontSize: 30, marginTop: 0, marginBottom: 8, fontWeight: 700 }}>
-                Ask Molle
-              </h1>
-              <p style={{ color: '#555', fontSize: 15, margin: '0 0 6px', lineHeight: 1.5 }}>
-                Search every Thursday DMA Weekly Q&amp;A session — transcripts, summaries, and recordings all in one place.
-              </p>
-              <p style={{ color: '#888', fontSize: 13, margin: '0 0 20px' }}>
-                Aug 2024 – present ·{' '}
-                <a href="/browse" style={{ color: ACCENT, textDecoration: 'none', fontWeight: 600 }}>
-                  📼 Browse all sessions →
-                </a>
-              </p>
-            </>
-          )}
-
-          {/* Search form */}
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: 10 }}>
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g. 'LiDAR equipment pricing' or 'contract negotiation'"
-              style={{
-                flex: 1, padding: '12px 16px', fontSize: 16,
-                border: '2px solid #ddd', borderRadius: 8, outline: 'none',
-              }}
-              onFocus={(e) => (e.target.style.borderColor = ACCENT)}
-              onBlur={(e) => (e.target.style.borderColor = '#ddd')}
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: '12px 28px', fontSize: 16,
-                backgroundColor: BRAND, color: '#fff',
-                border: 'none', borderRadius: 8,
-                cursor: loading ? 'wait' : 'pointer', fontWeight: 600,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {loading ? 'Searching…' : 'Search'}
-            </button>
-          </form>
+      {/* Header */}
+      {searched ? (
+        /* Compact header after search */
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <img src="/molle.png" alt="Molle" style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover' }} />
+          <h1 style={{ color: BRAND, fontSize: 20, margin: 0, fontWeight: 700 }}>DMA Q&amp;A Search</h1>
         </div>
-      </div>
+      ) : (
+        /* Full hero before search */
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <h1 style={{ color: BRAND, fontSize: 32, marginTop: 0, marginBottom: 8, fontWeight: 700 }}>
+            Ask Molle
+          </h1>
+          <p style={{ color: '#555', fontSize: 15, margin: '0 0 4px', lineHeight: 1.5 }}>
+            Search every Thursday DMA Weekly Q&amp;A session — transcripts, summaries, and recordings all in one place.
+          </p>
+          <p style={{ color: '#888', fontSize: 13, margin: '0 0 24px' }}>
+            Aug 2024 – present ·{' '}
+            <a href="/browse" style={{ color: ACCENT, textDecoration: 'none', fontWeight: 600 }}>
+              📼 Browse all sessions →
+            </a>
+          </p>
+        </div>
+      )}
+
+      {/* Search form */}
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 10, marginBottom: searched ? 0 : 32 }}>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="e.g. 'LiDAR equipment pricing' or 'contract negotiation'"
+          style={{
+            flex: 1, padding: '12px 16px', fontSize: 16,
+            border: '2px solid #ddd', borderRadius: 8, outline: 'none',
+          }}
+          onFocus={(e) => (e.target.style.borderColor = ACCENT)}
+          onBlur={(e) => (e.target.style.borderColor = '#ddd')}
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            padding: '12px 28px', fontSize: 16,
+            backgroundColor: BRAND, color: '#fff',
+            border: 'none', borderRadius: 8,
+            cursor: loading ? 'wait' : 'pointer', fontWeight: 600,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {loading ? 'Searching…' : 'Search'}
+        </button>
+      </form>
+
+      {/* Molle image — shown only before search */}
+      {!searched && (
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <img
+            src="/molle.png"
+            alt="Molle — DMA Search mascot"
+            style={{ width: 340, height: 'auto', borderRadius: 20, display: 'inline-block' }}
+          />
+          <p style={{ color: '#aaa', fontSize: 12, margin: '10px 0 0', fontStyle: 'italic' }}>
+            Molle knows where it&apos;s at!
+          </p>
+        </div>
+      )}
 
       {/* Error */}
       {error && (
-        <div style={{ padding: 16, background: '#ffebee', borderRadius: 8, marginBottom: 20, color: '#c62828' }}>
+        <div style={{ padding: 16, background: '#ffebee', borderRadius: 8, marginBottom: 20, color: '#c62828', marginTop: 20 }}>
           ❌ {error}
         </div>
       )}
 
       {/* Meta info */}
       {searched && !error && (
-        <p style={{ color: '#888', fontSize: 14, marginBottom: 16 }}>
+        <p style={{ color: '#888', fontSize: 14, marginBottom: 16, marginTop: 16 }}>
           {results.length === 0
             ? `No results found across ${meta?.total_searched || '?'} sessions for "${query}"`
             : `${results.length} result${results.length !== 1 ? 's' : ''} across ${meta?.total_searched || '?'} sessions for "${query}"`}
