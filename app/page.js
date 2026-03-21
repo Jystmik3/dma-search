@@ -1,6 +1,8 @@
 'use client';
-
 import { useState } from 'react';
+
+const BRAND = '#011736';
+const ACCENT = '#ff821f';
 
 export default function Home() {
   const [query, setQuery] = useState('');
@@ -8,6 +10,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [searched, setSearched] = useState(false);
+  const [meta, setMeta] = useState(null);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -15,6 +19,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setExpandedId(null);
+
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
@@ -22,120 +27,200 @@ export default function Home() {
         body: JSON.stringify({ query }),
       });
       const data = await res.json();
-      
       if (data.error) {
         setError(data.error);
+        setResults([]);
       } else {
         setResults(data.results || []);
+        setMeta({ total_searched: data.total_searched, count: data.count });
       }
     } catch (err) {
       setError('Search failed: ' + err.message);
     }
+
     setLoading(false);
+    setSearched(true);
   };
 
-  const toggleExpand = (id, e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setExpandedId(expandedId === id ? null : id);
+  const toggleExpand = (id) => setExpandedId(expandedId === id ? null : id);
+
+  const matchColor = (sim) => {
+    if (sim > 0.7) return BRAND;
+    if (sim > 0.5) return ACCENT;
+    return '#888';
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 20px', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        <h1 style={{ color: '#011736', fontSize: 32, marginBottom: 8 }}>🔍 DMA Weekly Q&A Search</h1>
-        <p style={{ color: '#666', fontSize: 16 }}>Search through DMA Weekly Q&A transcripts (August 2024 – present)</p>
-        <a href="/browse" style={{ display: 'inline-block', marginTop: 16, color: '#ff821f', textDecoration: 'none', fontSize: 14 }}>
-          📼 Browse all sessions →
-        </a>
-      </div>
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+      {/* Hero: Molle + Search */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 40, marginBottom: searched ? 32 : 48,
+        flexWrap: 'wrap',
+      }}>
+        {/* Molle image */}
+        {!searched && (
+          <div style={{ flexShrink: 0, textAlign: 'center' }}>
+            <img
+              src="/molle.png"
+              alt="Molle — DMA Search mascot"
+              style={{ width: 220, height: 'auto', borderRadius: 16, display: 'block' }}
+            />
+            <p style={{ color: '#888', fontSize: 12, margin: '8px 0 0', fontStyle: 'italic' }}>
+              Molle knows where it's at!
+            </p>
+          </div>
+        )}
+
+        {/* Title + search */}
+        <div style={{ flex: 1, minWidth: 280 }}>
+          {searched && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <img src="/molle.png" alt="Molle" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover' }} />
+              <h1 style={{ color: BRAND, fontSize: 22, margin: 0, fontWeight: 700 }}>DMA Q&amp;A Search</h1>
+            </div>
+          )}
+          {!searched && (
+            <>
+              <h1 style={{ color: BRAND, fontSize: 30, marginTop: 0, marginBottom: 8, fontWeight: 700 }}>
+                Ask Molle
+              </h1>
+              <p style={{ color: '#555', fontSize: 15, margin: '0 0 6px', lineHeight: 1.5 }}>
+                Search every Thursday DMA Weekly Q&amp;A session — transcripts, summaries, and recordings all in one place.
+              </p>
+              <p style={{ color: '#888', fontSize: 13, margin: '0 0 20px' }}>
+                Aug 2024 – present · {' '}
+                <a href="/browse" style={{ color: ACCENT, textDecoration: 'none', fontWeight: 600 }}>
+                  📼 Browse all sessions →
+                </a>
+              </p>
+            </>
+          )}
+
+          {/* Search form */}
+          <form onSubmit={handleSearch} style={{ display: 'flex', gap: 10, marginBottom: 0 }}>
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search transcripts... e.g. 'LiDAR equipment pricing'"
+          placeholder="e.g. 'LiDAR equipment pricing' or 'contract negotiation'"
           style={{
-            flex: 1, padding: '12px 16px', fontSize: 16, border: '2px solid #ddd',
-            borderRadius: 8, outline: 'none',
+            flex: 1, padding: '12px 16px', fontSize: 16,
+            border: `2px solid #ddd`, borderRadius: 8, outline: 'none',
           }}
-          onFocus={(e) => e.target.style.borderColor = '#ff821f'}
-          onBlur={(e) => e.target.style.borderColor = '#ddd'}
+          onFocus={(e) => (e.target.style.borderColor = ACCENT)}
+          onBlur={(e) => (e.target.style.borderColor = '#ddd')}
         />
         <button
           type="submit"
           disabled={loading}
           style={{
-            padding: '12px 24px', fontSize: 16, backgroundColor: '#011736', color: '#fff',
-            border: 'none', borderRadius: 8, cursor: loading ? 'wait' : 'pointer',
-            fontWeight: 600,
+            padding: '12px 28px', fontSize: 16,
+            backgroundColor: BRAND, color: '#fff',
+            border: 'none', borderRadius: 8,
+            cursor: loading ? 'wait' : 'pointer', fontWeight: 600,
+            whiteSpace: 'nowrap',
           }}
         >
-          {loading ? 'Searching...' : 'Search'}
+          {loading ? 'Searching…' : 'Search'}
         </button>
       </form>
 
+      {/* Error */}
       {error && (
         <div style={{ padding: 16, background: '#ffebee', borderRadius: 8, marginBottom: 20, color: '#c62828' }}>
-          ❌ Error: {error}
+          ❌ {error}
         </div>
       )}
 
-      {results.length > 0 && (
-        <div>
-          <p style={{ color: '#666', marginBottom: 16 }}>{results.length} results for "{query}"</p>
-          {results.map((r) => (
-            <div key={r.id} style={{
-              border: '1px solid #eee', borderRadius: 8, padding: 20, marginBottom: 16,
-              borderLeft: `4px solid ${r.similarity > 0.6 ? '#011736' : r.similarity > 0.4 ? '#ff821f' : '#999'}`,
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
-                  <strong style={{ color: '#011736', fontSize: 18, display: 'block', marginBottom: 4 }}>{r.title}</strong>
-                  <span style={{ color: '#ff821f', fontWeight: 600, fontSize: 14 }}>{Math.round(r.similarity * 100)}% match</span>
-                </div>
-                <a href={`/session/${r.id}`}
-                  style={{ color: '#011736', textDecoration: 'none', fontSize: 14, padding: '4px 12px', border: '1px solid #011736', borderRadius: 4 }}
-                >
-                  🔗 Full
-                </a>
-              </div>
-              <div style={{ color: '#999', fontSize: 14, marginBottom: 12 }}>{r.call_date}</div>
-              
-              {r.summary && (
-                <div style={{ marginBottom: 12 }}>
-                  <span style={{ color: '#011736', fontWeight: 600, fontSize: 14 }}>📝 Summary</span>
-                  <p style={{ color: '#444', lineHeight: 1.6, margin: '8px 0 0 0' }}>{r.summary}</p>
-                </div>
+      {/* Meta info */}
+      {searched && !error && (
+        <p style={{ color: '#888', fontSize: 14, marginBottom: 16 }}>
+          {results.length === 0
+            ? `No results found across ${meta?.total_searched || '?'} sessions for "${query}"`
+            : `${results.length} result${results.length !== 1 ? 's' : ''} across ${meta?.total_searched || '?'} sessions for "${query}"`}
+        </p>
+      )}
+
+      {/* Results */}
+      {results.map((r) => (
+        <div
+          key={r.id}
+          style={{
+            border: '1px solid #eee', borderRadius: 10, padding: 22,
+            marginBottom: 18, borderLeft: `4px solid ${matchColor(r.similarity)}`,
+            background: '#fff',
+          }}
+        >
+          {/* Title row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 6 }}>
+            <div>
+              <strong style={{ color: BRAND, fontSize: 17, display: 'block', marginBottom: 4 }}>
+                {r.title}
+              </strong>
+              <span style={{ color: ACCENT, fontWeight: 600, fontSize: 13 }}>
+                {Math.round(r.similarity * 100)}% match
+              </span>
+              {r.has_video && (
+                <span style={{ marginLeft: 10, fontSize: 13, color: '#555' }}>· 📹 Has video</span>
               )}
-              
-              <p style={{ color: '#444', lineHeight: 1.6, margin: 0 }}>{r.preview}...</p>
-              
-              {r.relevant_text && (
-                <div style={{ marginTop: 12 }}>
-                  <button onClick={(e) => toggleExpand(r.id, e)}
-                    style={{ background: 'none', border: 'none', color: '#011736', cursor: 'pointer', fontSize: 14 }}
-                  >
-                    {expandedId === r.id ? '▲ Hide' : '▼ Show'} relevant section
-                  </button>
-                  
-                  {expandedId === r.id && (
-                    <div style={{ marginTop: 12, padding: 16, background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee' }}>
-                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'system-ui, sans-serif', fontSize: 14, lineHeight: 1.7, color: '#444' }}>
-                        {r.relevant_text}
-                      </pre>
-                    </div>
-                  )}
+            </div>
+            <a
+              href={`/session/${r.id}`}
+              style={{
+                color: BRAND, textDecoration: 'none', fontSize: 13,
+                padding: '5px 12px', border: `1px solid ${BRAND}`, borderRadius: 6,
+                whiteSpace: 'nowrap', flexShrink: 0,
+              }}
+            >
+              View session →
+            </a>
+          </div>
+
+          <div style={{ color: '#999', fontSize: 13, marginBottom: 10 }}>
+            📅 {r.call_date}
+          </div>
+
+          {/* Summary */}
+          {r.summary && (
+            <div style={{ marginBottom: 10 }}>
+              <span style={{ color: BRAND, fontWeight: 600, fontSize: 13 }}>📝 Summary</span>
+              <p style={{ color: '#444', lineHeight: 1.6, margin: '6px 0 0', fontSize: 14 }}>{r.summary}</p>
+            </div>
+          )}
+
+          {/* Preview */}
+          {r.preview && (
+            <p style={{ color: '#555', lineHeight: 1.6, margin: 0, fontSize: 14 }}>{r.preview}…</p>
+          )}
+
+          {/* Relevant snippet */}
+          {r.relevant_text && (
+            <div style={{ marginTop: 12 }}>
+              <button
+                onClick={() => toggleExpand(r.id)}
+                style={{ background: 'none', border: 'none', color: BRAND, cursor: 'pointer', fontSize: 13, padding: 0, fontWeight: 600 }}
+              >
+                {expandedId === r.id ? '▲ Hide' : '▼ Show'} matching section
+              </button>
+              {expandedId === r.id && (
+                <div style={{ marginTop: 10, padding: 16, background: '#f7f9fc', borderRadius: 8, border: '1px solid #e8edf5' }}>
+                  <pre style={{
+                    margin: 0, whiteSpace: 'pre-wrap',
+                    fontFamily: 'system-ui, sans-serif', fontSize: 13, lineHeight: 1.7, color: '#333',
+                  }}>
+                    {r.relevant_text}
+                  </pre>
                 </div>
               )}
             </div>
-          ))}
+          )}
         </div>
-      )}
+      ))}
 
-      <div style={{ textAlign: 'center', color: '#999', fontSize: 14, marginTop: 60, borderTop: '1px solid #eee', paddingTop: 20 }}>
-        <p>Powered by Supabase + OpenAI</p>
+      {/* Footer */}
+      <div style={{ textAlign: 'center', color: '#bbb', fontSize: 13, marginTop: 60, borderTop: '1px solid #eee', paddingTop: 20 }}>
+        DMA Weekly Q&amp;A · Powered by Supabase
       </div>
     </div>
   );
