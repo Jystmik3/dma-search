@@ -58,7 +58,7 @@ export default function Home() {
         display: 'flex', alignItems: 'center', gap: 40, marginBottom: searched ? 32 : 48,
         flexWrap: 'wrap',
       }}>
-        {/* Molle image */}
+        {/* Molle image — shown only before search */}
         {!searched && (
           <div style={{ flexShrink: 0, textAlign: 'center' }}>
             <img
@@ -67,12 +67,12 @@ export default function Home() {
               style={{ width: 220, height: 'auto', borderRadius: 16, display: 'block' }}
             />
             <p style={{ color: '#888', fontSize: 12, margin: '8px 0 0', fontStyle: 'italic' }}>
-              Molle knows where it's at!
+              Molle knows where it&apos;s at!
             </p>
           </div>
         )}
 
-        {/* Title + search */}
+        {/* Title + search form */}
         <div style={{ flex: 1, minWidth: 280 }}>
           {searched && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
@@ -89,7 +89,7 @@ export default function Home() {
                 Search every Thursday DMA Weekly Q&amp;A session — transcripts, summaries, and recordings all in one place.
               </p>
               <p style={{ color: '#888', fontSize: 13, margin: '0 0 20px' }}>
-                Aug 2024 – present · {' '}
+                Aug 2024 – present ·{' '}
                 <a href="/browse" style={{ color: ACCENT, textDecoration: 'none', fontWeight: 600 }}>
                   📼 Browse all sessions →
                 </a>
@@ -98,33 +98,35 @@ export default function Home() {
           )}
 
           {/* Search form */}
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: 10, marginBottom: 0 }}>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="e.g. 'LiDAR equipment pricing' or 'contract negotiation'"
-          style={{
-            flex: 1, padding: '12px 16px', fontSize: 16,
-            border: `2px solid #ddd`, borderRadius: 8, outline: 'none',
-          }}
-          onFocus={(e) => (e.target.style.borderColor = ACCENT)}
-          onBlur={(e) => (e.target.style.borderColor = '#ddd')}
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            padding: '12px 28px', fontSize: 16,
-            backgroundColor: BRAND, color: '#fff',
-            border: 'none', borderRadius: 8,
-            cursor: loading ? 'wait' : 'pointer', fontWeight: 600,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {loading ? 'Searching…' : 'Search'}
-        </button>
-      </form>
+          <form onSubmit={handleSearch} style={{ display: 'flex', gap: 10 }}>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="e.g. 'LiDAR equipment pricing' or 'contract negotiation'"
+              style={{
+                flex: 1, padding: '12px 16px', fontSize: 16,
+                border: '2px solid #ddd', borderRadius: 8, outline: 'none',
+              }}
+              onFocus={(e) => (e.target.style.borderColor = ACCENT)}
+              onBlur={(e) => (e.target.style.borderColor = '#ddd')}
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                padding: '12px 28px', fontSize: 16,
+                backgroundColor: BRAND, color: '#fff',
+                border: 'none', borderRadius: 8,
+                cursor: loading ? 'wait' : 'pointer', fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {loading ? 'Searching…' : 'Search'}
+            </button>
+          </form>
+        </div>
+      </div>
 
       {/* Error */}
       {error && (
